@@ -381,25 +381,12 @@
     text-align: center;
   }
   .storage-banner.show{ display:block; }
-  .gear-btn{
-    position: absolute;
-    top: 18px; right: 16px;
-    width: 34px; height: 34px;
-    border-radius: 50%;
-    border: none;
-    background: rgba(255,255,255,0.12);
-    color: #fff;
-    font-size: 16px;
-    cursor: pointer;
-    z-index: 2;
-  }
 </style>
 </head>
 <body>
 <div class="app" id="app">
 
   <div class="hero">
-    <button class="gear-btn" id="openSettings" aria-label="설정">⚙️</button>
     <p class="hero-title">재고왔당</p>
     <p class="hero-sub">애니메이트 매장별 재고, 다녀온 사람들이 서로 알려줘요.<br>내가 본 재고를 30초 만에 기록해보세요.</p>
   </div>
@@ -434,8 +421,7 @@
   };
 
   let scannerInstance = null;
-  const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbwjqdKDfOjGppUOHSDKNAASSZ7T5t3uZ6yBs1kgHbWu98BZj8mvlCKNsOZyyYusc7Wp/exec';
-  let apiUrl = localStorage.getItem('stockTrackerApiUrl') || DEFAULT_API_URL;
+  const apiUrl = 'https://script.google.com/macros/s/AKfycbztfPsYhZAiQxAspUhDOB78qBtCjvjCDAGE7Po1qs5qcTwXutN0gH0-6G9bi__8GMay/exec';
 
   const storeRail = document.getElementById('storeRail');
   const content = document.getElementById('content');
@@ -537,9 +523,6 @@
     const base = apiUrlOrWarn();
     if (!base) return null;
     try{
-      // Apps Script's redirect chain doesn't carry CORS headers that fetch()
-      // can read, so we fire the write in no-cors mode: the request still
-      // reaches the script and gets processed, we just can't read the body.
       await fetch(base, {
         method: 'POST',
         mode: 'no-cors',
@@ -998,39 +981,6 @@
   }
 
   document.getElementById('openAddItem').onclick = openScanModal;
-
-  function openSettingsModal(){
-    const overlay = el('div', 'overlay');
-    overlay.innerHTML = `
-      <div class="modal">
-        <h3>저장 주소 설정</h3>
-        <div class="field">
-          <label>구글 앱스크립트 웹 앱 URL (.../exec)</label>
-          <input type="text" id="apiUrlInput" placeholder="https://script.google.com/macros/s/.../exec" value="${escapeAttr(apiUrl)}">
-        </div>
-        <div class="modal-actions">
-          <button class="btn btn-ghost" id="cancelSettings">취소</button>
-          <button class="btn btn-primary" id="confirmSettings">저장</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(overlay);
-    const input = overlay.querySelector('#apiUrlInput');
-    input.focus();
-    overlay.querySelector('#cancelSettings').onclick = () => overlay.remove();
-    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
-    overlay.querySelector('#confirmSettings').onclick = async () => {
-      const url = input.value.trim();
-      if (!url){ input.focus(); return; }
-      apiUrl = url;
-      localStorage.setItem('stockTrackerApiUrl', url);
-      refreshApiBanner();
-      overlay.remove();
-      showToast('저장 주소를 설정했어요');
-      await init();
-    };
-  }
-  document.getElementById('openSettings').onclick = openSettingsModal;
 
   async function init(){
     refreshApiBanner();
