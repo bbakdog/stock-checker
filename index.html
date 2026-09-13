@@ -421,7 +421,9 @@
   };
 
   let scannerInstance = null;
-  const apiUrl = 'https://script.google.com/macros/s/AKfycbztfPsYhZAiQxAspUhDOB78qBtCjvjCDAGE7Po1qs5qcTwXutN0gH0-6G9bi__8GMay/exec';
+  
+  // 아래 작은따옴표(' ') 안의 주소를 구글 앱스 스크립트 웹 앱 URL로 바꿔주세요!
+  const apiUrl = 'YOUR_WEB_APP_URL_HERE';
 
   const storeRail = document.getElementById('storeRail');
   const content = document.getElementById('content');
@@ -430,8 +432,8 @@
   const storageBanner = document.getElementById('storageBanner');
 
   function refreshApiBanner(){
-    if (!apiUrl){
-      storageBanner.textContent = '⚙️ 아직 데이터 저장 주소가 설정되지 않았어요. 오른쪽 위 톱니바퀴를 눌러 설정해주세요.';
+    if (!apiUrl || apiUrl === 'YOUR_WEB_APP_URL_HERE'){
+      storageBanner.textContent = '⚙️ 데이터 저장 주소가 설정되지 않았어요. index.html 파일의 apiUrl 주소를 입력해주세요.';
       storageBanner.classList.add('show');
     } else {
       storageBanner.classList.remove('show');
@@ -461,8 +463,8 @@
   }
 
   function apiUrlOrWarn(){
-    if (!apiUrl){
-      showToast('먼저 설정(⚙️)에서 저장 주소를 입력해주세요', 3000);
+    if (!apiUrl || apiUrl === 'YOUR_WEB_APP_URL_HERE'){
+      showToast('index.html 코드 내에 웹 앱 저장 주소를 입력해주세요', 3000);
       return null;
     }
     return apiUrl;
@@ -984,7 +986,7 @@
 
   async function init(){
     refreshApiBanner();
-    if (!apiUrl){
+    if (!apiUrl || apiUrl === 'YOUR_WEB_APP_URL_HERE'){
       renderStoreRail();
       renderContent();
       return;
