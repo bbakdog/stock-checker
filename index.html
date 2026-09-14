@@ -833,11 +833,22 @@ return;
 
 waitForScanner().then(async () => {
 if (!document.body.contains(overlay)) return;
-const startOptions = [
+let startOptions = [
  { facingMode: { ideal: 'environment' } },
  { facingMode: 'environment' },
  {}
 ];
+try {
+const cameras = await Html5Qrcode.getCameras();
+if (cameras.length >= 2){
+startOptions = [
+ { deviceId: { exact: cameras[1].id } },
+ ...startOptions
+];
+}
+} catch (error) {
+console.debug('camera list unavailable; using default camera selection', error);
+}
 const startCamera = async () => {
 let lastError = null;
 for (const options of startOptions){
