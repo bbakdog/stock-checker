@@ -5,178 +5,213 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>재고 관리 / Stock Checker</title>
   <style>
+    /* 기존 스타일 유지 */
     body {
-      font-family: Arial, sans-serif;
+      font-family: 'Noto Sans KR', Arial, sans-serif;
       margin: 20px;
-      background-color: #f4f4f9;
-    }
-    h1 {
+      background-color: #f4f6f9;
       color: #333;
     }
-    .form-section {
-      background: #fff;
-      padding: 15px;
+    h1 {
+      color: #2c3e50;
       margin-bottom: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
-    input, button, select {
-      padding: 8px;
+    .form-section {
+      background: #ffffff;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    }
+    .form-section h2 {
+      margin-top: 0;
+      font-size: 1.2rem;
+      color: #34495e;
+    }
+    input, select, button {
+      padding: 10px;
       margin: 4px 2px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
     }
     button {
-      background-color: #007bff;
+      background-color: #3498db;
       color: white;
       border: none;
       cursor: pointer;
+      transition: background 0.2s;
     }
     button:hover {
-      background-color: #0056b3;
+      background-color: #2980b9;
+    }
+    .delete-btn {
+      background-color: #e74c3c;
+      padding: 6px 10px;
+      font-size: 12px;
+    }
+    .delete-btn:hover {
+      background-color: #c0392b;
+    }
+    .store-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+      margin-top: 15px;
     }
     .store-card {
       background: white;
-      border-radius: 8px;
-      padding: 15px;
-      margin-bottom: 15px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      border-radius: 10px;
+      padding: 16px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+      border: 1px solid #eaeaea;
     }
     .store-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-bottom: 1px solid #eee;
-      padding-bottom: 8px;
+      border-bottom: 2px solid #f0f0f0;
+      padding-bottom: 10px;
+      margin-bottom: 12px;
+    }
+    .store-header h3 {
+      margin: 0;
+      font-size: 1.1rem;
+      color: #2c3e50;
     }
     .empty-msg {
-      color: #888;
+      color: #95a5a6;
+      font-size: 0.9rem;
       font-style: italic;
+      margin: 10px 0;
     }
-    ul {
-      list-style-type: none;
+    ul.item-list {
+      list-style: none;
       padding: 0;
+      margin: 0;
     }
-    li {
-      padding: 6px 0;
+    ul.item-list li {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
       border-bottom: 1px dashed #eee;
+      font-size: 0.95rem;
     }
   </style>
 </head>
 <body>
 
-  <h1>재고 관리 시스템</h1>
+  <h1>📦 재고 관리 시스템</h1>
 
-  <!-- 매장 등록 -->
+  <!-- 매장 등록 Form -->
   <div class="form-section">
-    <h2>매장 등록</h2>
-    <input type="text" id="store-name-input" placeholder="매장명 입력">
-    <button onclick="addStore()">매장 추가</button>
+    <h2>🏪 매장 등록</h2>
+    <input type="text" id="store-name-input" placeholder="매장명을 입력하세요">
+    <button onclick="addStore()">매장 등록</button>
   </div>
 
-  <!-- 재고 등록 -->
+  <!-- 재고 등록 Form -->
   <div class="form-section">
-    <h2>재고 등록</h2>
+    <h2>📋 재고 등록</h2>
     <select id="store-select">
       <option value="">매장을 선택하세요</option>
     </select>
-    <input type="text" id="item-name-input" placeholder="상품명 입력">
-    <input type="number" id="item-count-input" placeholder="수량 입력" min="0">
+    <input type="text" id="item-name-input" placeholder="상품명">
+    <input type="number" id="item-count-input" placeholder="수량" min="0">
     <button onclick="addItem()">재고 추가</button>
   </div>
 
-  <!-- 매장 및 재고 목록 화면 -->
-  <h2>매장별 재고 현황</h2>
-  <div id="store-list"></div>
+  <!-- 매장 현황 -->
+  <h2>매장별 현황</h2>
+  <div id="store-container" class="store-container"></div>
 
   <script>
-    // 1. LocalStorage에서 데이터 불러오기
+    // LocalStorage 데이터 로드
     function loadStores() {
       const data = localStorage.getItem('stores');
       return data ? JSON.parse(data) : [];
     }
 
-    // 2. LocalStorage에 데이터 저장하기
+    // LocalStorage 데이터 저장
     function saveStores(stores) {
       localStorage.setItem('stores', JSON.stringify(stores));
     }
 
-    // 3. 화면 및 셀렉트 박스 렌더링 함수
+    // 화면 렌더링 함수 (재고 유무와 관계없이 매장을 그리는 부분)
     function render() {
       const stores = loadStores();
-      const storeListEl = document.getElementById('store-list');
-      const storeSelectEl = document.getElementById('store-select');
+      const storeContainer = document.getElementById('store-container');
+      const storeSelect = document.getElementById('store-select');
 
-      // 매장 목록 초기화
-      storeListEl.innerHTML = '';
-      
-      // Select 박스 초기화
-      storeSelectEl.innerHTML = '<option value="">매장을 선택하세요</option>';
+      storeContainer.innerHTML = '';
+      storeSelect.innerHTML = '<option value="">매장을 선택하세요</option>';
 
       if (stores.length === 0) {
-        storeListEl.innerHTML = '<p class="empty-msg">등록된 매장이 없습니다.</p>';
+        storeContainer.innerHTML = '<p class="empty-msg">등록된 매장이 없습니다.</p>';
         return;
       }
 
-      // 저장된 모든 매장을 재고 등록 여부와 상관없이 무조건 렌더링
       stores.forEach(store => {
-        // --- Select 선택창 옵션 추가 ---
+        // 셀렉트 박스 옵션 추가
         const option = document.createElement('option');
         option.value = store.id;
         option.textContent = store.name;
-        storeSelectEl.appendChild(option);
+        storeSelect.appendChild(option);
 
-        // --- 매장 카드가 그려지는 부분 ---
-        const storeCard = document.createElement('div');
-        storeCard.className = 'store-card';
+        // 매장 카드 생성
+        const card = document.createElement('div');
+        card.className = 'store-card';
 
-        // 재고 목록 HTML 구성 (재고가 없어도 매장은 정상 표시)
-        let itemsHtml = '';
+        // 재고 목록 HTML 구성 (재고가 빈 배열[]이어도 매장 카드는 출력됨)
+        let itemsContent = '';
         if (store.items && store.items.length > 0) {
-          itemsHtml = '<ul>' + store.items.map(item => 
-            `<li><strong>${item.name}</strong>: ${item.count}개</li>`
-          ).join('') + '</ul>';
+          itemsContent = '<ul class="item-list">' + 
+            store.items.map(item => `
+              <li>
+                <span>${item.name}</span>
+                <strong>${item.count}개</strong>
+              </li>
+            `).join('') + 
+          '</ul>';
         } else {
-          itemsHtml = '<p class="empty-msg">등록된 재고가 없습니다.</p>';
+          itemsContent = '<p class="empty-msg">등록된 재고가 없습니다.</p>';
         }
 
-        storeCard.innerHTML = `
+        card.innerHTML = `
           <div class="store-header">
             <h3>${store.name}</h3>
-            <button onclick="deleteStore(${store.id})">매장 삭제</button>
+            <button class="delete-btn" onclick="deleteStore(${store.id})">삭제</button>
           </div>
-          ${itemsHtml}
+          ${itemsContent}
         `;
 
-        storeListEl.appendChild(storeCard);
+        storeContainer.appendChild(card);
       });
     }
 
-    // 4. 매장 추가 기능
+    // 매장 추가
     function addStore() {
-      const nameInput = document.getElementById('store-name-input');
-      const storeName = nameInput.value.trim();
+      const input = document.getElementById('store-name-input');
+      const name = input.value.trim();
 
-      if (!storeName) {
+      if (!name) {
         alert('매장명을 입력해주세요.');
         return;
       }
 
       const stores = loadStores();
-      const newStore = {
-        id: Date.now(), // 고유 ID 부여
-        name: storeName,
-        items: []       // 초기 빈 재고 배열 생성
-      };
+      stores.push({
+        id: Date.now(),
+        name: name,
+        items: [] // 빈 재고 배열로 시작
+      });
 
-      stores.push(newStore);
       saveStores(stores);
-      
-      nameInput.value = '';
-      render(); // 화면 즉시 업데이트
+      input.value = '';
+      render();
     }
 
-    // 5. 재고 추가 기능
+    // 재고 추가
     function addItem() {
       const storeSelect = document.getElementById('store-select');
       const nameInput = document.getElementById('item-name-input');
@@ -187,43 +222,42 @@
       const itemCount = Number(countInput.value);
 
       if (!storeId) {
-        alert('매장을 선택해주세요.');
+        alert('매장을 선택하세요.');
         return;
       }
       if (!itemName) {
-        alert('상품명을 입력해주세요.');
+        alert('상품명을 입력하세요.');
         return;
       }
 
       const stores = loadStores();
-      const targetStore = stores.find(s => s.id === storeId);
+      const store = stores.find(s => s.id === storeId);
 
-      if (targetStore) {
-        targetStore.items.push({
+      if (store) {
+        if (!store.items) store.items = [];
+        store.items.push({
           id: Date.now(),
           name: itemName,
           count: itemCount || 0
         });
 
         saveStores(stores);
-        
         nameInput.value = '';
         countInput.value = '';
-        render(); // 화면 즉시 업데이트
+        render();
       }
     }
 
-    // 6. 매장 삭제 기능
+    // 매장 삭제
     function deleteStore(storeId) {
-      if (!confirm('정말 삭제하시겠습니까?')) return;
-      
+      if (!confirm('해당 매장을 삭제하시겠습니까?')) return;
       let stores = loadStores();
       stores = stores.filter(s => s.id !== storeId);
       saveStores(stores);
       render();
     }
 
-    // 7. 페이지 최초 로드 시 데이터 렌더링 실행
+    // 페이지 로드 시 렌더링 실행
     document.addEventListener('DOMContentLoaded', render);
   </script>
 </body>
