@@ -846,6 +846,28 @@ overlay.remove();
 handleScannedCode(code);
 };
 const onFailure = () => {};
+const applyCloseFocus = (track) => {
+if (!track || !track.applyConstraints) return Promise.resolve();
+const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+const advanced = [];
+const modes = Array.isArray(capabilities.focusMode) ? capabilities.focusMode : [];
+if (modes.includes('continuous')) advanced.push({ focusMode: 'continuous' });
+if (capabilities.focusDistance){
+const min = Number(capabilities.focusDistance.min);
+const max = Number(capabilities.focusDistance.max);
+if (Number.isFinite(min) && Number.isFinite(max)){
+advanced.push({
+focusDistance: min + (max - min) * 0.15
+});
+}
+}
+if (capabilities.zoom){
+const max = Number(capabilities.zoom.max);
+if (Number.isFinite(max) && max >= 1) advanced.push({ zoom: Math.min(2, max) });
+}
+if (!advanced.length) return Promise.resolve();
+return track.applyConstraints({ advanced }).catch(() => {});
+};
 const constraintOptions = [
 {
   facingMode: 'environment',
@@ -885,6 +907,10 @@ const reader = document.getElementById('qrReader');
 reader.innerHTML = '';
 reader.appendChild(video);
 await video.play();
+const nativeTrack = stream.getVideoTracks()[0];
+const refocus = () => applyCloseFocus(nativeTrack);
+video.addEventListener('click', refocus);
+await refocus();
 const detector = new BarcodeDetectorClass({ formats });
 let stopped = false;
 const detect = async () => {
@@ -945,6 +971,11 @@ if (video){
 video.setAttribute('playsinline', 'true');
 video.setAttribute('webkit-playsinline', 'true');
 video.setAttribute('autoplay', 'true');
+const track = video.srcObject && video.srcObject.getVideoTracks()[0];
+if (track){
+applyCloseFocus(track);
+video.addEventListener('click', () => applyCloseFocus(track));
+}
 }
 return;
 } catch (error) {
