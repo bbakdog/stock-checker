@@ -833,96 +833,20 @@ return;
 
 waitForScanner().then(async () => {
 if (!document.body.contains(overlay)) return;
-let startOptions = [
- { facingMode: { ideal: 'environment' } },
- { facingMode: 'environment' },
- {}
-];
-try {
-const cameras = await Html5Qrcode.getCameras();
-if (cameras.length >= 1){
-startOptions = [
- { deviceId: { exact: cameras[0].id } },
- ...startOptions
-];
-}
-} catch (error) {
-console.debug('camera list unavailable; using default camera selection', error);
-}
-const startCamera = async () => {
-let lastError = null;
-for (const options of startOptions){
-if (!document.body.contains(overlay)) return;
-const scanner = new Html5Qrcode('qrReader');
-scannerInstance = scanner;
-try {
-await scanner.start(
- options,
- { fps: 10, qrbox: { width: 260, height: 160 } },
- (decodedText) => {
-   const code = decodedText.trim();
-   cleanupScanner();
-   overlay.remove();
-   handleScannedCode(code);
- },
- () => { /* per-frame miss, ignore */ }
-);
-return;
-} catch (error) {
-lastError = error;
-scannerInstance = null;
-try {
-await scanner.stop();
-} catch (stopError) {
-console.debug('camera cleanup after failed start', stopError);
-}
-try {
-scanner.clear();
-} catch (clearError) {
-console.debug('camera element cleanup failed', clearError);
-}
-}
-}
-throw lastError || new Error('카메라를 시작할 수 없어요');
-};
-return startCamera()
-.then(() => {
-const video = overlay.querySelector('#qrReader video');
-const track = video && video.srcObject && video.srcObject.getVideoTracks()[0];
-if (!track || !track.applyConstraints) return;
-if (video){
-video.setAttribute('playsinline', 'true');
-video.setAttribute('autoplay', 'true');
-}
-const applyZoom = () => {
-const capabilities = track.getCapabilities ? track.getCapabilities() : {};
-if (!capabilities.zoom) return Promise.resolve();
-const min = Number(capabilities.zoom.min);
-const max = Number(capabilities.zoom.max);
-if (!Number.isFinite(min) || !Number.isFinite(max)) return Promise.resolve();
-if (max < 1) return Promise.resolve();
-const zoom = Math.min(3, max);
-return track.applyConstraints({ advanced: [{ zoom }] });
-};
-const applyFocus = () => {
-const capabilities = track.getCapabilities ? track.getCapabilities() : {};
-const modes = Array.isArray(capabilities.focusMode) ? capabilities.focusMode : [];
-if (!modes.includes('continuous')) return Promise.resolve();
-return track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
-};
-const applyCameraControls = () => Promise.allSettled([applyZoom(), applyFocus()]);
-const retryControls = (attempt) => {
-applyCameraControls().catch(() => {});
-if (attempt < 3) setTimeout(() => retryControls(attempt + 1), 350);
-};
-if (video){
-video.addEventListener('click', () => retryControls(0));
-if (video.readyState < 2) video.addEventListener('loadeddata', () => retryControls(0), { once: true });
-else retryControls(0);
-} else {
-retryControls(0);
-}
-});
+scannerInstance = new Html5Qrcode('qrReader');
+scannerInstance.start(
+{
+  facingMode: { ideal: 'environment' }
+},
+{ fps: 10, qrbox: { width: 260, height: 160 } },
+(decodedText) => {
+const code = decodedText.trim();
+cleanupScanner();
+overlay.remove();
+handleScannedCode(code);
+},
+() => { /* per-frame miss, ignore */ }
+)
 }).catch((error) => {
 console.error('camera start error', error);
 if (hint) hint.textContent = '카메라를 시작할 수 없어요. 브라우저의 카메라 권한을 허용한 뒤 다시 시도해주세요.';
