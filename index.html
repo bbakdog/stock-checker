@@ -847,14 +847,18 @@ hint.textContent = '바코드를 읽지 못함';
 async function handleScannedCode(code){
 if (!catalogPromise) catalogPromise = loadCatalog();
 await catalogPromise;
+const existingItem = state.items.find(item =>
+item.storeId === state.currentStoreId && item.barcode === code
+);
 const known = state.catalog[code];
 openItemFormModal({
 barcode: code,
-name: known ? known.name : '',
-price: known ? known.price : null,
-photo: known ? known.photo : null,
+name: existingItem ? existingItem.name : (known ? known.name : ''),
+price: existingItem ? existingItem.price : (known ? known.price : null),
+photo: existingItem ? existingItem.photo : (known ? known.photo : null),
+existingItem,
 });
-showToast(known ? '등록된 상품 정보를 불러옴' : '처음 스캔된 바코드임');
+showToast(existingItem ? '기존 상품 정보를 불러옴 수정 가능함' : (known ? '등록된 상품 정보를 불러옴' : '처음 스캔된 바코드임'));
 }
 
 function resizeImageFile(file){
@@ -884,13 +888,16 @@ reader.readAsDataURL(file);
 function openItemFormModal(prefill){
 if (!state.currentStoreId) return;
 prefill = prefill || {};
-let selectedStatus = 'yes';
+const existingItem = prefill.existingItem || null;
+let selectedStatus = existingItem && (existingItem.status === 'no' || existingItem.status === 'yes')
+? existingItem.status
+: 'yes';
 let photoData = prefill.photo || null;
 const barcode = prefill.barcode || null;
 const overlay = el('div', 'overlay');
 overlay.innerHTML = `
 <div class="modal">
-<h3>재고 등록</h3>
+<h3>${existingItem ? '재고 수정' : '재고 등록'}</h3>
 ${barcode ? `<div class="barcode-tag">바코드 ${escapeHtml(barcode)}</div>` : ''}
 <div class="field">
 <label>사진 선택</label>
@@ -909,14 +916,14 @@ ${photoData ? '사진 바꾸기' : '사진 선택하기'}
 <div class="field">
 <label>재고 상태</label>
 <div class="toggle-row">
-<button type="button" class="sel-yes" data-v="yes">재고 있음</button>
-<button type="button" data-v="no">품절</button>
+<button type="button" class="${selectedStatus === 'yes' ? 'sel-yes' : ''}" data-v="yes">재고 있음</button>
+<button type="button" class="${selectedStatus === 'no' ? 'sel-no' : ''}" data-v="no">품절</button>
 </div>
 </div>
 <div class="row-2">
 <div class="field">
 <label>개수 선택</label>
-<input type="number" id="itemQtyInput" min="0" inputmode="numeric" placeholder="개수 입력">
+<input type="number" id="itemQtyInput" min="0" inputmode="numeric" placeholder="개수 입력" value="${existingItem && existingItem.qty != null ? existingItem.qty : ''}">
 </div>
 <div class="field">
 <label>가격 선택</label>
@@ -925,11 +932,11 @@ ${photoData ? '사진 바꾸기' : '사진 선택하기'}
 </div>
 <div class="field">
 <label>메모 선택</label>
-<textarea id="itemNoteInput" rows="2" maxlength="120" placeholder="메모 입력"></textarea>
+<textarea id="itemNoteInput" rows="2" maxlength="120" placeholder="메모 입력">${escapeHtml(existingItem && existingItem.note ? existingItem.note : '')}</textarea>
 </div>
 <div class="modal-actions">
 <button class="btn btn-ghost" id="cancelItem">취소</button>
-<button class="btn btn-primary" id="confirmItem">등록하기</button>
+<button class="btn btn-primary" id="confirmItem">${existingItem ? '수정하기' : '등록하기'}</button>
 </div>
 </div>
 `;
@@ -997,7 +1004,7 @@ confirmBtn.textContent = '저장 중';
 const saved = await saveItem(itemPayload);
 if (!saved){
 confirmBtn.disabled = false;
-confirmBtn.textContent = '등록하기';
+confirmBtn.textContent = existing ? '수정하기' : '등록하기';
 return;
 }
 
@@ -1008,7 +1015,12 @@ state.items.push(itemPayload);
 }
 
 if (barcode){
-const entry = { name, price, photo: safePhoto || null, updatedAt: Date.now() };
+const entry = {
+name,
+price,
+photo: safePhoto || (existing ? existing.photo : null),
+updatedAt: Date.now()
+};
 state.catalog[barcode] = entry;
 await saveCatalogEntry(barcode, entry);
 }
