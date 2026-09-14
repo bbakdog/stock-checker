@@ -815,16 +815,35 @@ overlay.querySelector('#cancelScan').onclick = closeScan;
 overlay.querySelector('#manualEntryBtn').onclick = () => { closeScan(); openItemFormModal(); };
 overlay.onclick = (e) => { if (e.target === overlay) closeScan(); };
 
-if (typeof Html5Qrcode === 'undefined'){
-overlay.querySelector('#scanHint').textContent = '이 브라우저에서는 카메라 스캔을 쓸 수 없어요. 아래에서 직접 입력해주세요.';
+const hint = overlay.querySelector('#scanHint');
+const waitForScanner = () => new Promise((resolve, reject) => {
+const startedAt = Date.now();
+const check = () => {
+if (typeof Html5Qrcode !== 'undefined') return resolve();
+if (Date.now() - startedAt >= 5000) return reject(new Error('카메라 스캐너를 불러오지 못했어요'));
+setTimeout(check, 100);
+};
+check();
+});
+
+if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+hint.textContent = 'HTTPS 또는 카메라 권한이 필요한 브라우저입니다. 주소와 권한을 확인해주세요.';
 return;
 }
 
+waitForScanner().then(async () => {
+if (!document.body.contains(overlay)) return;
 scannerInstance = new Html5Qrcode('qrReader');
-scannerInstance.start(
-{
-facingMode: { ideal: 'environment' }
-},
+let cameraConfig = { facingMode: 'environment' };
+try {
+const cameras = await Html5Qrcode.getCameras();
+const rearCamera = cameras.find(camera => /back|rear|environment|후면|뒤/i.test(camera.label));
+if (rearCamera) cameraConfig = { deviceId: { exact: rearCamera.id } };
+} catch (e) {
+// start() will request permission and report a useful error if unavailable.
+}
+return scannerInstance.start(
+cameraConfig,
 { fps: 10, qrbox: { width: 260, height: 160 } },
 (decodedText) => {
 const code = decodedText.trim();
@@ -841,9 +860,10 @@ const capabilities = track.getCapabilities ? track.getCapabilities() : {};
 if (capabilities.focusMode && capabilities.focusMode.includes('continuous')){
 track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
 }
-}).catch(() => {
-const hint = document.getElementById('scanHint');
-if (hint) hint.textContent = '카메라를 사용할 수 없어요. 권한을 확인하거나 직접 입력해주세요.';
+});
+}).catch((error) => {
+console.error('camera start error', error);
+if (hint) hint.textContent = '카메라를 시작할 수 없어요. 브라우저의 카메라 권한을 허용한 뒤 다시 시도해주세요.';
 });
 }
 
