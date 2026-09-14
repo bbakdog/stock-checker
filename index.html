@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
-<title>애니메이트 재고 · 매장 재고 공유</title>
+<title>애니메이트 재고 매장 재고 공유</title>
 <link rel="icon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -382,7 +382,7 @@ text-align: center;
 <div class="storage-banner" id="storageBanner"></div>
 <div class="content" id="content"></div>
 <div class="fab" id="fab" style="display:none;">
-<button class="btn btn-primary" id="openAddItem">+ 재고 등록</button>
+<button class="btn btn-primary" id="openAddItem">재고 등록</button>
 </div>
 <div class="toast" id="toast"></div>
 </div>
@@ -461,14 +461,14 @@ cleanup();
 const timer = setTimeout(() => {
 if (done) return;
 done = true;
-reject(new Error('요청이 너무 오래 걸려요(시간 초과)'));
+reject(new Error('요청이 너무 오래 걸림 시간 초과'));
 cleanup();
 }, timeoutMs || 10000);
 
 script.onerror = () => {
 if (done) return;
 done = true;
-reject(new Error('스크립트 로드 실패 (주소를 확인해주세요)'));
+reject(new Error('스크립트 로드 실패 주소를 확인해야 함'));
 cleanup();
 };
 
@@ -478,6 +478,23 @@ document.body.appendChild(script);
 });
 }
 
+function refreshApiBanner(){
+if (!apiUrl || apiUrl === 'YOUR_WEB_APP_URL_HERE'){
+storageBanner.textContent = '데이터 저장 주소가 설정되지 않음 indexhtml의 apiUrl을 확인해야 함';
+storageBanner.classList.add('show');
+} else {
+storageBanner.classList.remove('show');
+}
+}
+
+function apiUrlOrWarn(){
+if (!apiUrl || apiUrl === 'YOUR_WEB_APP_URL_HERE'){
+showToast('indexhtml의 apiUrl을 설정해야 함', 3000);
+return null;
+}
+return apiUrl;
+}
+
 async function apiGet(params){
 const base = apiUrlOrWarn();
 if (!base) return null;
@@ -485,7 +502,7 @@ try{
 return await jsonp(base, params);
 }catch(e){
 console.error('apiGet error', e);
-showToast('불러오기 실패: ' + (e && e.message ? e.message : String(e)), 4000);
+showToast('불러오기 실패 ' + (e && e.message ? e.message : String(e)), 4000);
 return null;
 }
 }
@@ -503,7 +520,7 @@ body: JSON.stringify(payload)
 return { ok: true };
 }catch(e){
 console.error('apiPost error', e);
-showToast('저장 실패: ' + (e && e.message ? e.message : String(e)), 4000);
+showToast('저장 실패 ' + (e && e.message ? e.message : String(e)), 4000);
 return null;
 }
 }
@@ -589,7 +606,7 @@ const chip = el('button', 'store-chip' + (store.id === state.currentStoreId ? ' 
 chip.onclick = () => selectStore(store.id);
 storeRail.appendChild(chip);
 });
-const addChip = el('button', 'store-chip add', '+ 매장 추가');
+const addChip = el('button', 'store-chip add', '매장 추가');
 addChip.onclick = openAddStoreModal;
 storeRail.appendChild(addChip);
 }
@@ -599,7 +616,7 @@ const loadVersion = ++storeLoadVersion;
 state.currentStoreId = storeId;
 state.items = [];
 renderStoreRail();
-content.innerHTML = '<div class="empty-state"><div class="small">불러오는 중…</div></div>';
+content.innerHTML = '<div class="empty-state"><div class="small">불러오는 중</div></div>';
 const items = await loadItems(storeId);
 if (loadVersion !== storeLoadVersion || state.currentStoreId !== storeId) return;
 state.items = items;
@@ -655,7 +672,7 @@ list.innerHTML = '';
 if (!items.length){
 const es = el('div', 'empty-state');
 es.innerHTML = state.items.length
-? `<div class="small">검색 결과가 없어요.</div>`
+? `<div class="small">검색 결과가 없음</div>`
 : ``;
 list.appendChild(es);
 return;
@@ -674,7 +691,7 @@ card.innerHTML = `
 ${item.photo ? `<img class="item-thumb" src="${item.photo}">` : ''}
 <div>
 <div class="item-name">${escapeHtml(item.name)}</div>
-<div class="item-meta">${fmtDate(item.updatedAt)} 확인됨${item.barcode ? ' · 바코드 스캔' : ''}</div>
+<div class="item-meta">${fmtDate(item.updatedAt)} 확인됨${item.barcode ? ' 바코드 스캔' : ''}</div>
 ${priceQtyParts.length ? `<div class="item-price-qty">${priceQtyParts.join('')}</div>` : ''}
 </div>
 </div>
@@ -756,7 +773,7 @@ const name = nameInput.value.trim();
 if (!name){ nameInput.focus(); return; }
 const confirmBtn = overlay.querySelector('#confirmStore');
 confirmBtn.disabled = true;
-confirmBtn.textContent = '추가 중…';
+confirmBtn.textContent = '추가 중';
 const newId = await createStore(name);
 if (!newId){
 confirmBtn.disabled = false;
@@ -780,9 +797,9 @@ overlay.innerHTML = `
 <div class="modal">
 <h3>바코드 사진 선택</h3>
 <div id="qrReader" style="display:none;"></div>
-<div class="scan-hint" id="scanHint">카메라로 촬영하거나 사진 보관함에서 바코드 사진을 선택</div>
+<div class="scan-hint" id="scanHint">카메라로 촬영하거나 사진 보관함에서 바코드 사진을 선택함</div>
 <label class="btn btn-primary" style="display:block;text-align:center;margin-top:16px;">
-카메라 키기
+카메라 켜기
 <input type="file" accept="image/*" capture="environment" id="barcodeImageInput" style="display:none;">
 </label>
 <div class="modal-actions">
@@ -802,7 +819,7 @@ const hint = overlay.querySelector('#scanHint');
 overlay.querySelector('#barcodeImageInput').onchange = async (event) => {
 const file = event.target.files && event.target.files[0];
 if (!file) return;
-hint.textContent = '바코드를 읽는 중…';
+hint.textContent = '바코드를 읽는 중';
 try {
 let code = null;
 if ('BarcodeDetector' in window){
@@ -837,7 +854,7 @@ name: known ? known.name : '',
 price: known ? known.price : null,
 photo: known ? known.photo : null,
 });
-showToast(known ? '등록된 상품 정보를 불러옴' : '처음 스캔된 바코드');
+showToast(known ? '등록된 상품 정보를 불러옴' : '처음 스캔된 바코드임');
 }
 
 function resizeImageFile(file){
@@ -876,7 +893,7 @@ overlay.innerHTML = `
 <h3>재고 등록</h3>
 ${barcode ? `<div class="barcode-tag">바코드 ${escapeHtml(barcode)}</div>` : ''}
 <div class="field">
-<label>사진 (선택)</label>
+<label>사진 선택</label>
 <div class="photo-upload">
 <img class="photo-preview" id="photoPreview" style="${photoData ? '' : 'display:none;'}" src="${photoData || ''}">
 <label class="photo-upload-btn" id="photoBtnLabel">
@@ -887,7 +904,7 @@ ${photoData ? '사진 바꾸기' : '사진 선택하기'}
 </div>
 <div class="field">
 <label>상품명</label>
-<input type="text" id="itemNameInput" placeholder="예: 진격의 거인 아크릴 스탠드" maxlength="60" value="${escapeAttr(prefill.name || '')}">
+<input type="text" id="itemNameInput" placeholder="상품명 입력" maxlength="60" value="${escapeAttr(prefill.name || '')}">
 </div>
 <div class="field">
 <label>재고 상태</label>
@@ -898,17 +915,17 @@ ${photoData ? '사진 바꾸기' : '사진 선택하기'}
 </div>
 <div class="row-2">
 <div class="field">
-<label>개수 (선택)</label>
-<input type="number" id="itemQtyInput" min="0" inputmode="numeric" placeholder="예: 3">
+<label>개수 선택</label>
+<input type="number" id="itemQtyInput" min="0" inputmode="numeric" placeholder="개수 입력">
 </div>
 <div class="field">
-<label>가격 (선택)</label>
-<input type="number" id="itemPriceInput" min="0" inputmode="numeric" placeholder="예: 15000" value="${prefill.price != null ? prefill.price : ''}">
+<label>가격 선택</label>
+<input type="number" id="itemPriceInput" min="0" inputmode="numeric" placeholder="가격 입력" value="${prefill.price != null ? prefill.price : ''}">
 </div>
 </div>
 <div class="field">
-<label>메모 (선택)</label>
-<textarea id="itemNoteInput" rows="2" maxlength="120" placeholder="예: 3층 매대에 있음"></textarea>
+<label>메모 선택</label>
+<textarea id="itemNoteInput" rows="2" maxlength="120" placeholder="메모 입력"></textarea>
 </div>
 <div class="modal-actions">
 <button class="btn btn-ghost" id="cancelItem">취소</button>
@@ -933,7 +950,7 @@ const photoBtnLabel = overlay.querySelector('#photoBtnLabel');
 photoInput.onchange = async () => {
 const file = photoInput.files[0];
 if (!file) return;
-photoBtnLabel.firstChild.textContent = '처리 중…';
+photoBtnLabel.firstChild.textContent = '처리 중';
 try{
 photoData = await resizeImageFile(file);
 photoPreview.src = photoData;
@@ -976,7 +993,7 @@ updatedAt: Date.now(),
 
 const confirmBtn = overlay.querySelector('#confirmItem');
 confirmBtn.disabled = true;
-confirmBtn.textContent = '저장 중…';
+confirmBtn.textContent = '저장 중';
 const saved = await saveItem(itemPayload);
 if (!saved){
 confirmBtn.disabled = false;
@@ -1040,7 +1057,7 @@ saveSnapshot();
 async function init(){
 try{
 refreshApiBanner();
-if (!apiUrl || apiUrl === 'https://script.google.com/macros/s/AKfycbztfPsYhZAiQxAspUhDOB78qBtCjvjCDAGE7Po1qs5qcTwXutN0gH0-6G9bi__8GMay/exec'){
+if (!apiUrl || apiUrl === 'YOUR_WEB_APP_URL_HERE'){
 renderStoreRail();
 renderContent();
 return;
@@ -1080,7 +1097,7 @@ await refreshFromServer(targetStoreId, false);
 // Catalog is loaded lazily when the barcode scanner is used.
 }catch(err){
 console.error('init error', err);
-storageBanner.textContent = '문제가 발생함: ' + (err && err.message ? err.message : String(err));
+storageBanner.textContent = '문제가 발생함 ' + (err && err.message ? err.message : String(err));
 storageBanner.classList.add('show');
 }
 }
