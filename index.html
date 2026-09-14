@@ -522,6 +522,31 @@ const data = await apiGet({ action: 'stores' });
 state.stores = Array.isArray(data) ? data : [];
 }
 
+async function loadInit(storeId){
+const params = storeId ? { action: 'init', store: storeId } : { action: 'init' };
+return await apiGet(params);
+}
+
+function saveSnapshot(){
+try{
+localStorage.setItem('stockTrackerSnapshot', JSON.stringify({
+stores: state.stores,
+currentStoreId: state.currentStoreId,
+items: state.items,
+savedAt: Date.now()
+}));
+}catch(e){ /* storage unavailable or full, skip silently */ }
+}
+
+function loadSnapshot(){
+try{
+const raw = localStorage.getItem('stockTrackerSnapshot');
+return raw ? JSON.parse(raw) : null;
+}catch(e){
+return null;
+}
+}
+
 async function createStore(name){
 const id = uid();
 const res = await apiPost({ action: 'addStore', id, name });
@@ -566,6 +591,7 @@ renderStoreRail();
 content.innerHTML = '<div class="empty-state"><div class="small">불러오는 중…</div></div>';
 await loadItems(storeId);
 renderContent();
+saveSnapshot();
 }
 
 function currentSearch(){
@@ -970,13 +996,51 @@ renderStoreRail();
 renderContent();
 return;
 }
-await loadStores();
+
+// 1. Paint instantly from the last-known snapshot (if any) so the screen
+// is never blank while we wait on the network.
+const snap = loadSnapshot();
+let paintedFromCache = false;
+if (snap && Array.isArray(snap.stores) && snap.stores.length){
+state.stores = snap.stores;
+state.currentStoreId = snap.currentStoreId || snap.stores[0].id;
+state.items = Array.isArray(snap.items) ? snap.items : [];
+renderStoreRail();
+renderContent();
+paintedFromCache = true;
+}
+
+// 2. Fetch fresh data. If we already know which store to show, this is a
+// single combined request (stores + items together).
+const targetStoreId = state.currentStoreId;
+const data = await loadInit(targetStoreId);
+
+if (!data || !Array.isArray(data.stores)){
+if (!paintedFromCache){ renderStoreRail(); renderContent(); }
+} else if (!targetStoreId){
+// True first-ever visit: we only know the store list so far, so pick the
+// first store and fetch its items as a second (unavoidable) request.
+state.stores = data.stores;
 renderStoreRail();
 if (state.stores.length){
 await selectStore(state.stores[0].id);
 } else {
 renderContent();
 }
+} else {
+state.stores = data.stores;
+if (state.currentStoreId === targetStoreId && Array.isArray(data.items)){
+state.items = data.items;
+}
+renderStoreRail();
+if (document.getElementById('itemList')){
+renderItemList();
+} else {
+renderContent();
+}
+saveSnapshot();
+}
+
 // Catalog is only needed for barcode-scan autofill, so fetch it quietly
 // in the background instead of delaying the initial screen.
 catalogPromise = loadCatalog();
