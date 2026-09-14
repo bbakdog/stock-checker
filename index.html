@@ -759,7 +759,7 @@ overlay.innerHTML = `
 <div class="modal">
 <h3>바코드 스캔</h3>
 <div id="qrReader" class="qr-reader-box"></div>
-<div class="scan-hint" id="scanHint">상품 바코드를 카메라에 비춰주세요</div>
+<div class="scan-hint" id="scanHint">상품 바코드를 카메라에 비춰주세요 (초점이 안 맞으면 살짝 앞뒤로 움직여보세요)</div>
 <div class="modal-actions">
 <button class="btn btn-ghost" id="cancelScan">취소</button>
 <button class="btn btn-ghost" id="manualEntryBtn">바코드 없이 입력할게요</button>
@@ -797,8 +797,12 @@ return;
 }
 
 scannerInstance = new Html5Qrcode('qrReader');
-scannerInstance.start(
-{ facingMode: 'environment' },
+const focusedConstraints = {
+facingMode: 'environment',
+advanced: [{ focusMode: 'continuous' }]
+};
+const startScanner = (constraints) => scannerInstance.start(
+constraints,
 { fps: 10, qrbox: { width: 260, height: 160 } },
 (decodedText) => {
 const code = decodedText.trim();
@@ -807,9 +811,15 @@ overlay.remove();
 handleScannedCode(code);
 },
 () => { /* per-frame miss, ignore */ }
-).catch(() => {
+);
+
+startScanner(focusedConstraints).catch(() => {
+// Some browsers reject the advanced focusMode constraint outright —
+// fall back to the plain constraint so scanning still works.
+startScanner({ facingMode: 'environment' }).catch(() => {
 const hint = document.getElementById('scanHint');
 if (hint) hint.textContent = '카메라를 사용할 수 없어요. 권한을 확인하거나 직접 입력해주세요.';
+});
 });
 }
 
@@ -990,6 +1000,7 @@ showToast('재고를 등록했어요');
 document.getElementById('openAddItem').onclick = openScanModal;
 
 async function init(){
+try{
 refreshApiBanner();
 if (!apiUrl || apiUrl === 'YOUR_WEB_APP_URL_HERE'){
 renderStoreRail();
@@ -1017,6 +1028,10 @@ const data = await loadInit(targetStoreId);
 
 if (!data || !Array.isArray(data.stores)){
 if (!paintedFromCache){ renderStoreRail(); renderContent(); }
+if (data === null){
+storageBanner.textContent = '⚠️ 서버에서 매장 정보를 못 받아왔어요. 새로고침해도 안 되면 스크린샷 보내주세요.';
+storageBanner.classList.add('show');
+}
 } else if (!targetStoreId){
 // True first-ever visit: we only know the store list so far, so pick the
 // first store and fetch its items as a second (unavoidable) request.
@@ -1044,6 +1059,11 @@ saveSnapshot();
 // Catalog is only needed for barcode-scan autofill, so fetch it quietly
 // in the background instead of delaying the initial screen.
 catalogPromise = loadCatalog();
+}catch(err){
+console.error('init error', err);
+storageBanner.textContent = '⚠️ 문제가 발생했어요: ' + (err && err.message ? err.message : String(err));
+storageBanner.classList.add('show');
+}
 }
 
 init();
