@@ -841,7 +841,8 @@ if (hint) hint.textContent = '카메라를 사용할 수 없어요. 권한을 �
 }
 
 async function handleScannedCode(code){
-if (catalogPromise) await catalogPromise;
+if (!catalogPromise) catalogPromise = loadCatalog();
+await catalogPromise;
 const known = state.catalog[code];
 openItemFormModal({
 barcode: code,
@@ -1069,9 +1070,7 @@ renderContent();
 saveSnapshot();
 }
 
-// Catalog is only needed for barcode-scan autofill, so fetch it quietly
-// in the background instead of delaying the initial screen.
-catalogPromise = loadCatalog();
+// Catalog is loaded lazily when the barcode scanner is used.
 }catch(err){
 console.error('init error', err);
 storageBanner.textContent = '⚠️ 문제가 발생했어요: ' + (err && err.message ? err.message : String(err));
