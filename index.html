@@ -786,9 +786,13 @@ if (!state.currentStoreId) return;
 const overlay = el('div', 'overlay');
 overlay.innerHTML = `
 <div class="modal">
-<h3>바코드 스캔</h3>
-<div id="qrReader" class="qr-reader-box"></div>
-<div class="scan-hint" id="scanHint">상품 바코드를 카메라에 비춰주세요 (초점이 안 맞으면 살짝 앞뒤로 움직여보세요)</div>
+<h3>바코드 사진 선택</h3>
+<div id="qrReader" style="display:none;"></div>
+<div class="scan-hint" id="scanHint">카메라로 촬영하거나 사진 보관함에서 바코드 사진을 선택해주세요.</div>
+<label class="btn btn-primary" style="display:block;text-align:center;margin-top:16px;">
+카메라 또는 사진 선택
+<input type="file" accept="image/*" capture="environment" id="barcodeImageInput" style="display:none;">
+</label>
 <div class="modal-actions">
 <button class="btn btn-ghost" id="cancelScan">취소</button>
 <button class="btn btn-ghost" id="manualEntryBtn">바코드 없이 입력할게요</button>
@@ -796,200 +800,39 @@ overlay.innerHTML = `
 </div>
 `;
 document.body.appendChild(overlay);
-
-const cleanupScanner = () => {
-if (!scannerInstance) return;
-const s = scannerInstance;
-scannerInstance = null;
-try{
-const stopResult = s.stop();
-if (stopResult && typeof stopResult.then === 'function'){
-stopResult.catch(()=>{}).finally(() => {
-try{ s.clear(); }catch(e){}
-});
-} else {
-try{ s.clear(); }catch(e){}
-}
-}catch(e){
-try{ s.clear(); }catch(e2){}
-}
-};
-const closeScan = () => { overlay.remove(); cleanupScanner(); };
+const closeScan = () => overlay.remove();
 
 overlay.querySelector('#cancelScan').onclick = closeScan;
 overlay.querySelector('#manualEntryBtn').onclick = () => { closeScan(); openItemFormModal(); };
 overlay.onclick = (e) => { if (e.target === overlay) closeScan(); };
 
 const hint = overlay.querySelector('#scanHint');
-const waitForScanner = () => new Promise((resolve, reject) => {
-const startedAt = Date.now();
-const check = () => {
-if (typeof Html5Qrcode !== 'undefined') return resolve();
-if (Date.now() - startedAt >= 5000) return reject(new Error('카메라 스캐너를 불러오지 못했어요'));
-setTimeout(check, 100);
-};
-check();
-});
-
-if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-hint.textContent = 'HTTPS 또는 카메라 권한이 필요한 브라우저입니다. 주소와 권한을 확인해주세요.';
-return;
+overlay.querySelector('#barcodeImageInput').onchange = async (event) => {
+const file = event.target.files && event.target.files[0];
+if (!file) return;
+hint.textContent = '바코드를 읽는 중…';
+try {
+let code = null;
+if ('BarcodeDetector' in window){
+const detector = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'qr_code'] });
+const bitmap = await createImageBitmap(file);
+const results = await detector.detect(bitmap);
+bitmap.close();
+if (results.length) code = results[0].rawValue;
 }
-
-waitForScanner().then(async () => {
-if (!document.body.contains(overlay)) return;
-const qrConfig = { fps: 15, qrbox: { width: 320, height: 140 } };
-const onSuccess = (decodedText) => {
-const code = decodedText.trim();
-cleanupScanner();
+if (!code && typeof Html5Qrcode !== 'undefined'){
+const reader = new Html5Qrcode('qrReader');
+code = await reader.scanFile(file, true);
+reader.clear();
+}
+if (!code) throw new Error('barcode not found');
 overlay.remove();
-handleScannedCode(code);
-};
-const onFailure = () => {};
-const applyCloseFocus = (track) => {
-if (!track || !track.applyConstraints) return Promise.resolve();
-const capabilities = track.getCapabilities ? track.getCapabilities() : {};
-const advanced = [];
-const modes = Array.isArray(capabilities.focusMode) ? capabilities.focusMode : [];
-if (modes.includes('continuous')) advanced.push({ focusMode: 'continuous' });
-if (capabilities.focusDistance){
-const min = Number(capabilities.focusDistance.min);
-const max = Number(capabilities.focusDistance.max);
-if (Number.isFinite(min) && Number.isFinite(max)){
-advanced.push({
-focusDistance: min + (max - min) * 0.15
-});
-}
-}
-if (capabilities.zoom){
-const max = Number(capabilities.zoom.max);
-if (Number.isFinite(max) && max >= 1) advanced.push({ zoom: Math.min(2, max) });
-}
-if (!advanced.length) return Promise.resolve();
-return track.applyConstraints({ advanced }).catch(() => {});
-};
-const constraintOptions = [
-{
-  facingMode: 'environment',
-  width: { min: 1280, ideal: 1920 },
-  height: { min: 720, ideal: 1080 },
-  aspectRatio: { ideal: 1.777777778 },
-  advanced: [{ zoom: 2 }]
-},
-{
-  facingMode: 'environment',
-  width: { min: 1280, ideal: 1280 },
-  height: { min: 720, ideal: 720 }
-},
-{ facingMode: 'environment' }
-];
-
-const startNativeDetector = async () => {
-if (!('BarcodeDetector' in window)) return false;
-const BarcodeDetectorClass = window.BarcodeDetector;
-const supported = BarcodeDetectorClass.getSupportedFormats
-  ? await BarcodeDetectorClass.getSupportedFormats()
-  : ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'qr_code'];
-const formats = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'qr_code']
-  .filter(format => supported.includes(format));
-if (!formats.length) return false;
-const stream = await navigator.mediaDevices.getUserMedia({
-  video: constraintOptions[0],
-  audio: false
-});
-const video = document.createElement('video');
-video.autoplay = true;
-video.muted = true;
-video.playsInline = true;
-video.setAttribute('webkit-playsinline', 'true');
-video.srcObject = stream;
-const reader = document.getElementById('qrReader');
-reader.innerHTML = '';
-reader.appendChild(video);
-await video.play();
-const nativeTrack = stream.getVideoTracks()[0];
-const refocus = () => applyCloseFocus(nativeTrack);
-video.addEventListener('click', refocus);
-await refocus();
-const detector = new BarcodeDetectorClass({ formats });
-let stopped = false;
-const detect = async () => {
-if (stopped || !document.body.contains(overlay)) return;
-try {
-const results = await detector.detect(video);
-if (results.length && results[0].rawValue){
-onSuccess(results[0].rawValue);
-return;
-}
+handleScannedCode(String(code).trim());
 } catch (error) {
-console.debug('native barcode detection failed', error);
-}
-requestAnimationFrame(detect);
-};
-scannerInstance = {
-stop: async () => {
-stopped = true;
-stream.getTracks().forEach(track => track.stop());
-},
-clear: () => {
-video.srcObject = null;
-reader.innerHTML = '';
+console.error('image barcode scan error', error);
+hint.textContent = '바코드를 읽지 못했어요. 바코드가 선명하게 보이는 사진을 다시 선택해주세요.';
 }
 };
-requestAnimationFrame(detect);
-return true;
-};
-
-try {
-if (await startNativeDetector()) return;
-} catch (error) {
-console.debug('native barcode detector unavailable; using html5-qrcode', error);
-}
-
-try {
-const cameras = await Html5Qrcode.getCameras();
-const mainCamera = cameras.find(camera => {
-const label = String(camera.label || '').toLowerCase();
-return (label.includes('back') || label.includes('rear') || label.includes('environment'))
-  && !label.includes('ultra')
-  && !label.includes('wide');
-});
-if (mainCamera) constraintOptions.unshift({ deviceId: { exact: mainCamera.id } });
-} catch (error) {
-console.debug('camera list unavailable; using facingMode fallback', error);
-}
-
-let lastError = null;
-for (const constraints of constraintOptions){
-if (!document.body.contains(overlay)) return;
-const scanner = new Html5Qrcode('qrReader');
-scannerInstance = scanner;
-try {
-await scanner.start(constraints, qrConfig, onSuccess, onFailure);
-const video = overlay.querySelector('#qrReader video');
-if (video){
-video.setAttribute('playsinline', 'true');
-video.setAttribute('webkit-playsinline', 'true');
-video.setAttribute('autoplay', 'true');
-const track = video.srcObject && video.srcObject.getVideoTracks()[0];
-if (track){
-applyCloseFocus(track);
-video.addEventListener('click', () => applyCloseFocus(track));
-}
-}
-return;
-} catch (error) {
-lastError = error;
-scannerInstance = null;
-try { await scanner.stop(); } catch (stopError) {}
-try { scanner.clear(); } catch (clearError) {}
-}
-}
-throw lastError || new Error('카메라를 시작할 수 없어요');
-}).catch((error) => {
-console.error('camera start error', error);
-if (hint) hint.textContent = '카메라를 시작할 수 없어요. 권한을 확인하거나 직접 입력해주세요.';
-});
 }
 
 async function handleScannedCode(code){
