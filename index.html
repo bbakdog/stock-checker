@@ -833,7 +833,6 @@ return;
 
 waitForScanner().then(async () => {
 if (!document.body.contains(overlay)) return;
-scannerInstance = new Html5Qrcode('qrReader');
 const startOptions = [
  { facingMode: { ideal: 'environment' } },
  { facingMode: 'environment' },
@@ -842,8 +841,11 @@ const startOptions = [
 const startCamera = async () => {
 let lastError = null;
 for (const options of startOptions){
+if (!document.body.contains(overlay)) return;
+const scanner = new Html5Qrcode('qrReader');
+scannerInstance = scanner;
 try {
-return await scannerInstance.start(
+await scanner.start(
  options,
  { fps: 10, qrbox: { width: 260, height: 160 } },
  (decodedText) => {
@@ -854,14 +856,25 @@ return await scannerInstance.start(
  },
  () => { /* per-frame miss, ignore */ }
 );
+return;
 } catch (error) {
 lastError = error;
+scannerInstance = null;
+try {
+await scanner.stop();
+} catch (stopError) {
+console.debug('camera cleanup after failed start', stopError);
+}
+try {
+scanner.clear();
+} catch (clearError) {
+console.debug('camera element cleanup failed', clearError);
+}
 }
 }
 throw lastError || new Error('카메라를 시작할 수 없어요');
 };
-return startCamera(
-)
+return startCamera()
 .then(() => {
 const video = overlay.querySelector('#qrReader video');
 const track = video && video.srcObject && video.srcObject.getVideoTracks()[0];
