@@ -1,264 +1,1053 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>재고 관리 / Stock Checker</title>
-  <style>
-    /* 기존 스타일 유지 */
-    body {
-      font-family: 'Noto Sans KR', Arial, sans-serif;
-      margin: 20px;
-      background-color: #f4f6f9;
-      color: #333;
-    }
-    h1 {
-      color: #2c3e50;
-      margin-bottom: 20px;
-    }
-    .form-section {
-      background: #ffffff;
-      padding: 20px;
-      margin-bottom: 20px;
-      border-radius: 10px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-    }
-    .form-section h2 {
-      margin-top: 0;
-      font-size: 1.2rem;
-      color: #34495e;
-    }
-    input, select, button {
-      padding: 10px;
-      margin: 4px 2px;
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      font-size: 14px;
-    }
-    button {
-      background-color: #3498db;
-      color: white;
-      border: none;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-    button:hover {
-      background-color: #2980b9;
-    }
-    .delete-btn {
-      background-color: #e74c3c;
-      padding: 6px 10px;
-      font-size: 12px;
-    }
-    .delete-btn:hover {
-      background-color: #c0392b;
-    }
-    .store-container {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 16px;
-      margin-top: 15px;
-    }
-    .store-card {
-      background: white;
-      border-radius: 10px;
-      padding: 16px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-      border: 1px solid #eaeaea;
-    }
-    .store-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 2px solid #f0f0f0;
-      padding-bottom: 10px;
-      margin-bottom: 12px;
-    }
-    .store-header h3 {
-      margin: 0;
-      font-size: 1.1rem;
-      color: #2c3e50;
-    }
-    .empty-msg {
-      color: #95a5a6;
-      font-size: 0.9rem;
-      font-style: italic;
-      margin: 10px 0;
-    }
-    ul.item-list {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-    ul.item-list li {
-      display: flex;
-      justify-content: space-between;
-      padding: 8px 0;
-      border-bottom: 1px dashed #eee;
-      font-size: 0.95rem;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>재고왔당 · 매장 재고 공유</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<style>
+:root{
+--bg: #EEF1F6;
+--paper: #FFFFFF;
+--ink: #14171F;
+--ink-soft: #5A6072;
+--line: #E1E5EE;
+--accent: #FF3D71;
+--accent-ink: #7A0034;
+--blue: #2F6FED;
+--stock-yes: #16A34A;
+--stock-yes-bg: #E7F7EC;
+--stock-no: #E11D48;
+--stock-no-bg: #FDECEF;
+--stock-unknown: #9AA1B2;
+--stock-unknown-bg: #F0F1F5;
+--radius: 14px;
+--shadow: 0 1px 2px rgba(20,23,31,0.04), 0 6px 16px rgba(20,23,31,0.06);
+}
+* { box-sizing: border-box; }
+html,body{ margin:0; padding:0; }
+body{
+background: var(--bg);
+color: var(--ink);
+font-family: 'Noto Sans KR', sans-serif;
+-webkit-font-smoothing: antialiased;
+min-height: 100vh;
+}
+.app{ max-width: 480px; margin: 0 auto; min-height: 100vh; background: var(--bg); display:flex; flex-direction:column; }
+.hero{
+background: var(--ink);
+color: #fff;
+padding: 22px 18px 18px;
+position: relative;
+overflow: hidden;
+}
+.hero::after{
+content:"";
+position:absolute; right:-30px; top:-30px;
+width:140px; height:140px; border-radius:50%;
+background: radial-gradient(circle, rgba(255,61,113,0.55), transparent 70%);
+}
+.hero-title{
+font-family:'Black Han Sans', sans-serif;
+font-size: 30px;
+letter-spacing: 0.5px;
+margin: 0 0 4px;
+position: relative;
+}
+.hero-sub{
+font-size: 13px;
+color: rgba(255,255,255,0.72);
+margin: 0;
+line-height: 1.5;
+position: relative;
+}
+.store-rail{
+display:flex; gap:8px; padding: 12px 14px; overflow-x:auto;
+background: var(--paper);
+border-bottom: 1px solid var(--line);
+scrollbar-width: none;
+}
+.store-rail::-webkit-scrollbar{ display:none; }
+.store-chip{
+flex: 0 0 auto;
+padding: 8px 14px;
+border-radius: 999px;
+border: 1.5px solid var(--line);
+background: #fff;
+color: var(--ink-soft);
+font-size: 13.5px;
+font-weight: 600;
+white-space: nowrap;
+cursor: pointer;
+transition: all .15s ease;
+}
+.store-chip.active{
+background: var(--ink);
+border-color: var(--ink);
+color: #fff;
+}
+.store-chip.add{
+color: var(--accent);
+border-color: var(--accent);
+background: #fff;
+}
+.content{ flex:1; padding: 14px 14px 100px; }
+.empty-state{
+text-align:center;
+padding: 60px 20px;
+color: var(--ink-soft);
+}
+.empty-state .big{ font-size: 15px; font-weight: 700; color: var(--ink); margin-bottom:6px; }
+.empty-state .small{ font-size: 13px; line-height:1.6; }
+.search-row{
+display:flex; gap:8px; margin-bottom: 12px;
+}
+.search-input{
+flex:1;
+padding: 11px 14px;
+border-radius: var(--radius);
+border: 1.5px solid var(--line);
+background: var(--paper);
+font-size: 14px;
+font-family: inherit;
+outline: none;
+}
+.search-input:focus{ border-color: var(--blue); }
+.btn{
+border: none;
+border-radius: var(--radius);
+font-family: inherit;
+font-weight: 700;
+cursor: pointer;
+transition: transform .1s ease, opacity .15s ease;
+}
+.btn:active{ transform: scale(0.97); }
+.btn-primary{
+background: var(--accent);
+color: #fff;
+padding: 11px 18px;
+font-size: 14px;
+}
+.btn-ghost{
+background: var(--paper);
+color: var(--ink);
+border: 1.5px solid var(--line);
+padding: 11px 14px;
+font-size: 14px;
+}
+.section-label{
+font-size: 12px;
+font-weight: 700;
+color: var(--ink-soft);
+margin: 18px 2px 8px;
+}
+.item-card{
+background: var(--paper);
+border-radius: var(--radius);
+box-shadow: var(--shadow);
+padding: 14px 14px 12px;
+margin-bottom: 10px;
+border-left: 5px solid var(--stock-unknown);
+position: relative;
+}
+.item-card.yes{ border-left-color: var(--stock-yes); }
+.item-card.no{ border-left-color: var(--stock-no); }
+.item-top{
+display:flex; justify-content:space-between; align-items:flex-start; gap:10px;
+}
+.item-main-row{ display:flex; gap:10px; flex:1; min-width:0; }
+.item-thumb{
+width: 52px; height: 52px; border-radius: 10px;
+object-fit: cover; flex: 0 0 auto;
+background: #F0F1F5;
+}
+.item-name{
+font-size: 15.5px;
+font-weight: 700;
+line-height: 1.4;
+word-break: break-word;
+}
+.item-meta{
+font-size: 11.5px;
+color: var(--ink-soft);
+margin-top: 4px;
+}
+.item-price-qty{
+display:flex; gap: 10px; margin-top: 5px;
+font-size: 12.5px; color: var(--ink-soft);
+}
+.item-price-qty b{ color: var(--ink); font-weight: 700; }
+.item-note{
+font-size: 12.5px;
+color: var(--ink-soft);
+margin-top: 8px;
+line-height: 1.5;
+background: #F7F8FB;
+padding: 6px 9px;
+border-radius: 8px;
+}
+.status-badge{
+flex: 0 0 auto;
+font-size: 12px;
+font-weight: 800;
+padding: 5px 10px;
+border-radius: 8px;
+white-space: nowrap;
+}
+.status-badge.yes{ background: var(--stock-yes-bg); color: var(--stock-yes); }
+.status-badge.no{ background: var(--stock-no-bg); color: var(--stock-no); }
+.status-badge.unknown{ background: var(--stock-unknown-bg); color: var(--stock-unknown); }
+.item-actions{
+display:flex; gap:6px; margin-top: 10px;
+}
+.mini-btn{
+flex:1;
+padding: 8px 6px;
+border-radius: 9px;
+border: 1.5px solid var(--line);
+background: #fff;
+font-size: 12.5px;
+font-weight: 700;
+color: var(--ink-soft);
+cursor: pointer;
+}
+.mini-btn.yes-active{ background: var(--stock-yes-bg); border-color: var(--stock-yes); color: var(--stock-yes); }
+.mini-btn.no-active{ background: var(--stock-no-bg); border-color: var(--stock-no); color: var(--stock-no); }
+.fab{
+position: fixed;
+left: 50%;
+bottom: 22px;
+transform: translateX(-50%);
+width: min(452px, calc(100vw - 28px));
+display:flex; justify-content:flex-end;
+pointer-events:none;
+}
+.fab button{
+pointer-events:auto;
+padding: 14px 22px;
+border-radius: 999px;
+box-shadow: 0 10px 24px rgba(255,61,113,0.35);
+font-size: 14.5px;
+}
+.overlay{
+position: fixed; inset:0;
+background: rgba(20,23,31,0.45);
+display:flex; align-items:flex-end; justify-content:center;
+z-index: 50;
+}
+.modal{
+background: var(--paper);
+width: 100%;
+max-width: 480px;
+border-radius: 20px 20px 0 0;
+padding: 20px 18px 26px;
+max-height: 86vh;
+overflow-y: auto;
+}
+.modal h3{
+font-size: 18px;
+margin: 2px 0 16px;
+}
+.field{ margin-bottom: 14px; }
+.field label{
+display:block;
+font-size: 12.5px;
+font-weight: 700;
+color: var(--ink-soft);
+margin-bottom: 6px;
+}
+.field input, .field textarea{
+width: 100%;
+padding: 11px 13px;
+border-radius: 11px;
+border: 1.5px solid var(--line);
+font-family: inherit;
+font-size: 14.5px;
+outline: none;
+resize: none;
+}
+.field input:focus, .field textarea:focus{ border-color: var(--blue); }
+.row-2{ display:flex; gap:10px; }
+.row-2 .field{ flex:1; }
+.photo-upload{ display:flex; align-items:center; gap:12px; }
+.photo-preview{
+width: 66px; height: 66px; border-radius: 11px;
+object-fit: cover; background: #F0F1F5; flex: 0 0 auto;
+border: 1.5px solid var(--line);
+}
+.photo-upload-btn{
+flex:1;
+padding: 11px 13px;
+border-radius: 11px;
+border: 1.5px dashed var(--line);
+background: #F7F8FB;
+color: var(--ink-soft);
+font-size: 13px;
+font-weight: 600;
+text-align:center;
+cursor: pointer;
+}
+.photo-upload-btn input{ display:none; }
+.toggle-row{ display:flex; gap:8px; }
+.toggle-row button{
+flex:1;
+padding: 12px;
+border-radius: 11px;
+border: 1.5px solid var(--line);
+background: #fff;
+font-weight: 700;
+font-size: 14px;
+color: var(--ink-soft);
+cursor:pointer;
+}
+.toggle-row button.sel-yes{ background: var(--stock-yes-bg); border-color: var(--stock-yes); color: var(--stock-yes); }
+.toggle-row button.sel-no{ background: var(--stock-no-bg); border-color: var(--stock-no); color: var(--stock-no); }
+.modal-actions{ display:flex; gap:8px; margin-top: 6px; }
+.modal-actions .btn{ flex:1; padding: 13px; font-size: 15px; }
+.qr-reader-box{
+width: 100%;
+min-height: 220px;
+border-radius: 14px;
+overflow: hidden;
+background: #0B0B10;
+}
+.qr-reader-box video, .qr-reader-box canvas{ width: 100% !important; }
+.scan-hint{
+text-align: center;
+font-size: 13px;
+color: var(--ink-soft);
+margin-top: 12px;
+line-height: 1.5;
+}
+.barcode-tag{
+display:inline-block;
+font-size: 11px;
+font-weight: 700;
+color: var(--blue);
+background: #EAF1FF;
+padding: 3px 8px;
+border-radius: 6px;
+margin-bottom: 10px;
+}
+.hint{
+font-size: 11.5px;
+color: var(--ink-soft);
+text-align:center;
+padding: 14px 20px 0;
+line-height: 1.6;
+}
+.toast{
+position: fixed;
+left:50%; bottom: 90px; transform: translateX(-50%);
+background: var(--ink); color:#fff;
+padding: 10px 18px; border-radius: 16px;
+font-size: 13px; font-weight: 600;
+box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+z-index: 60;
+opacity:0; transition: opacity .2s ease;
+pointer-events:none;
+max-width: calc(100% - 40px);
+text-align: center;
+white-space: pre-wrap;
+word-break: break-word;
+}
+.toast.show{ opacity:1; }
+.storage-banner{
+display:none;
+background: #FEF3C7;
+color: #7C4A03;
+font-size: 12px;
+line-height: 1.5;
+padding: 10px 14px;
+text-align: center;
+}
+.storage-banner.show{ display:block; }
+</style>
 </head>
 <body>
+<div class="app" id="app">
+<div class="hero">
+<p class="hero-title">재고왔당</p>
+<p class="hero-sub">애니메이트 매장별 재고, 다녀온 사람들이 서로 알려줘요.<br>내가 본 재고를 30초 만에 기록해보세요.</p>
+</div>
+<div class="store-rail" id="storeRail"></div>
+<div class="storage-banner" id="storageBanner"></div>
+<div class="content" id="content"></div>
+<div class="fab" id="fab" style="display:none;">
+<button class="btn btn-primary" id="openAddItem">+ 재고 등록</button>
+</div>
+<div class="toast" id="toast"></div>
+</div>
+<script>
+(function(){
+const el = (tag, cls, html) => {
+const e = document.createElement(tag);
+if (cls) e.className = cls;
+if (html !== undefined) e.innerHTML = html;
+return e;
+};
 
-  <h1>📦 재고 관리 시스템</h1>
+const state = {
+stores: [],
+currentStoreId: null,
+items: [],
+catalog: {},
+loading: true,
+};
 
-  <!-- 매장 등록 Form -->
-  <div class="form-section">
-    <h2>🏪 매장 등록</h2>
-    <input type="text" id="store-name-input" placeholder="매장명을 입력하세요">
-    <button onclick="addStore()">매장 등록</button>
-  </div>
+let scannerInstance = null;
+let catalogPromise = null;
 
-  <!-- 재고 등록 Form -->
-  <div class="form-section">
-    <h2>📋 재고 등록</h2>
-    <select id="store-select">
-      <option value="">매장을 선택하세요</option>
-    </select>
-    <input type="text" id="item-name-input" placeholder="상품명">
-    <input type="number" id="item-count-input" placeholder="수량" min="0">
-    <button onclick="addItem()">재고 추가</button>
-  </div>
+// 아래 작은따옴표(' ') 안의 주소를 구글 앱스 스크립트 웹 앱 URL로 바꿔주세요!
+const apiUrl = 'https://script.google.com/macros/s/AKfycbztfPsYhZAiQxAspUhDOB78qBtCjvjCDAGE7Po1qs5qcTwXutN0gH0-6G9bi__8GMay/exec';
 
-  <!-- 매장 현황 -->
-  <h2>매장별 현황</h2>
-  <div id="store-container" class="store-container"></div>
+const storeRail = document.getElementById('storeRail');
+const content = document.getElementById('content');
+const fab = document.getElementById('fab');
+const toastEl = document.getElementById('toast');
+const storageBanner = document.getElementById('storageBanner');
 
-  <script>
-    // LocalStorage 데이터 로드
-    function loadStores() {
-      const data = localStorage.getItem('stores');
-      return data ? JSON.parse(data) : [];
-    }
+function refreshApiBanner(){
+if (!apiUrl || apiUrl === 'YOUR_WEB_APP_URL_HERE'){
+storageBanner.textContent = '⚙️ 데이터 저장 주소가 설정되지 않았어요. index.html 파일의 apiUrl 주소를 입력해주세요.';
+storageBanner.classList.add('show');
+} else {
+storageBanner.classList.remove('show');
+}
+}
 
-    // LocalStorage 데이터 저장
-    function saveStores(stores) {
-      localStorage.setItem('stores', JSON.stringify(stores));
-    }
+function showToast(msg, duration){
+toastEl.textContent = msg;
+toastEl.classList.add('show');
+clearTimeout(toastEl._hideTimer);
+toastEl._hideTimer = setTimeout(()=> toastEl.classList.remove('show'), duration || 1600);
+}
 
-    // 화면 렌더링 함수 (재고 유무와 관계없이 매장을 그리는 부분)
-    function render() {
-      const stores = loadStores();
-      const storeContainer = document.getElementById('store-container');
-      const storeSelect = document.getElementById('store-select');
+function uid(){
+return Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+}
 
-      storeContainer.innerHTML = '';
-      storeSelect.innerHTML = '<option value="">매장을 선택하세요</option>';
+function fmtDate(ts){
+const d = new Date(ts);
+const now = new Date();
+const sameDay = d.toDateString() === now.toDateString();
+const mo = d.getMonth()+1, da = d.getDate();
+const hh = d.getHours().toString().padStart(2,'0');
+const mm = d.getMinutes().toString().padStart(2,'0');
+if (sameDay) return `오늘 ${hh}:${mm}`;
+return `${mo}.${da} ${hh}:${mm}`;
+}
 
-      if (stores.length === 0) {
-        storeContainer.innerHTML = '<p class="empty-msg">등록된 매장이 없습니다.</p>';
-        return;
-      }
+function apiUrlOrWarn(){
+if (!apiUrl || apiUrl === 'YOUR_WEB_APP_URL_HERE'){
+showToast('index.html 코드 내에 웹 앱 저장 주소를 입력해주세요', 3000);
+return null;
+}
+return apiUrl;
+}
 
-      stores.forEach(store => {
-        // 셀렉트 박스 옵션 추가
-        const option = document.createElement('option');
-        option.value = store.id;
-        option.textContent = store.name;
-        storeSelect.appendChild(option);
+function jsonp(url, params, timeoutMs){
+return new Promise((resolve, reject) => {
+const cbName = '__jsonp_cb_' + Math.random().toString(36).slice(2);
+const script = document.createElement('script');
+let done = false;
 
-        // 매장 카드 생성
-        const card = document.createElement('div');
-        card.className = 'store-card';
+function cleanup(){
+delete window[cbName];
+if (script.parentNode) script.parentNode.removeChild(script);
+clearTimeout(timer);
+}
 
-        // 재고 목록 HTML 구성 (재고가 빈 배열[]이어도 매장 카드는 출력됨)
-        let itemsContent = '';
-        if (store.items && store.items.length > 0) {
-          itemsContent = '<ul class="item-list">' + 
-            store.items.map(item => `
-              <li>
-                <span>${item.name}</span>
-                <strong>${item.count}개</strong>
-              </li>
-            `).join('') + 
-          '</ul>';
-        } else {
-          itemsContent = '<p class="empty-msg">등록된 재고가 없습니다.</p>';
-        }
+window[cbName] = (data) => {
+if (done) return;
+done = true;
+resolve(data);
+cleanup();
+};
 
-        card.innerHTML = `
-          <div class="store-header">
-            <h3>${store.name}</h3>
-            <button class="delete-btn" onclick="deleteStore(${store.id})">삭제</button>
-          </div>
-          ${itemsContent}
-        `;
+const timer = setTimeout(() => {
+if (done) return;
+done = true;
+reject(new Error('요청이 너무 오래 걸려요(시간 초과)'));
+cleanup();
+}, timeoutMs || 10000);
 
-        storeContainer.appendChild(card);
-      });
-    }
+script.onerror = () => {
+if (done) return;
+done = true;
+reject(new Error('스크립트 로드 실패 (주소를 확인해주세요)'));
+cleanup();
+};
 
-    // 매장 추가
-    function addStore() {
-      const input = document.getElementById('store-name-input');
-      const name = input.value.trim();
+const qs = new URLSearchParams({ ...params, callback: cbName }).toString();
+script.src = url + (url.indexOf('?') >= 0 ? '&' : '?') + qs;
+document.body.appendChild(script);
+});
+}
 
-      if (!name) {
-        alert('매장명을 입력해주세요.');
-        return;
-      }
+async function apiGet(params){
+const base = apiUrlOrWarn();
+if (!base) return null;
+try{
+return await jsonp(base, params);
+}catch(e){
+console.error('apiGet error', e);
+showToast('불러오기 실패: ' + (e && e.message ? e.message : String(e)), 4000);
+return null;
+}
+}
 
-      const stores = loadStores();
-      stores.push({
-        id: Date.now(),
-        name: name,
-        items: [] // 빈 재고 배열로 시작
-      });
+async function apiPost(payload){
+const base = apiUrlOrWarn();
+if (!base) return null;
+try{
+await fetch(base, {
+method: 'POST',
+mode: 'no-cors',
+headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+body: JSON.stringify(payload)
+});
+return { ok: true };
+}catch(e){
+console.error('apiPost error', e);
+showToast('저장 실패: ' + (e && e.message ? e.message : String(e)), 4000);
+return null;
+}
+}
 
-      saveStores(stores);
-      input.value = '';
-      render();
-    }
+async function loadStores(){
+const data = await apiGet({ action: 'stores' });
+state.stores = Array.isArray(data) ? data : [];
+}
 
-    // 재고 추가
-    function addItem() {
-      const storeSelect = document.getElementById('store-select');
-      const nameInput = document.getElementById('item-name-input');
-      const countInput = document.getElementById('item-count-input');
+async function loadInit(storeId){
+const params = storeId ? { action: 'init', store: storeId } : { action: 'init' };
+return await apiGet(params);
+}
 
-      const storeId = Number(storeSelect.value);
-      const itemName = nameInput.value.trim();
-      const itemCount = Number(countInput.value);
+function saveSnapshot(){
+try{
+localStorage.setItem('stockTrackerSnapshot', JSON.stringify({
+stores: state.stores,
+currentStoreId: state.currentStoreId,
+items: state.items,
+savedAt: Date.now()
+}));
+}catch(e){ /* storage unavailable or full, skip silently */ }
+}
 
-      if (!storeId) {
-        alert('매장을 선택하세요.');
-        return;
-      }
-      if (!itemName) {
-        alert('상품명을 입력하세요.');
-        return;
-      }
+function loadSnapshot(){
+try{
+const raw = localStorage.getItem('stockTrackerSnapshot');
+return raw ? JSON.parse(raw) : null;
+}catch(e){
+return null;
+}
+}
 
-      const stores = loadStores();
-      const store = stores.find(s => s.id === storeId);
+async function createStore(name){
+const id = uid();
+const res = await apiPost({ action: 'addStore', id, name });
+return (res && res.ok) ? id : null;
+}
 
-      if (store) {
-        if (!store.items) store.items = [];
-        store.items.push({
-          id: Date.now(),
-          name: itemName,
-          count: itemCount || 0
-        });
+async function loadItems(storeId){
+const data = await apiGet({ action: 'items', store: storeId });
+state.items = Array.isArray(data) ? data : [];
+}
 
-        saveStores(stores);
-        nameInput.value = '';
-        countInput.value = '';
-        render();
-      }
-    }
+async function saveItem(item){
+const res = await apiPost({ action: 'upsertItem', item });
+return !!(res && res.ok);
+}
 
-    // 매장 삭제
-    function deleteStore(storeId) {
-      if (!confirm('해당 매장을 삭제하시겠습니까?')) return;
-      let stores = loadStores();
-      stores = stores.filter(s => s.id !== storeId);
-      saveStores(stores);
-      render();
-    }
+async function loadCatalog(){
+const data = await apiGet({ action: 'catalog' });
+state.catalog = (data && typeof data === 'object' && !Array.isArray(data)) ? data : {};
+}
 
-    // 페이지 로드 시 렌더링 실행
-    document.addEventListener('DOMContentLoaded', render);
-  </script>
+async function saveCatalogEntry(code, entry){
+const res = await apiPost({ action: 'upsertCatalog', code, entry });
+return !!(res && res.ok);
+}
+
+function renderStoreRail(){
+storeRail.innerHTML = '';
+state.stores.forEach(store => {
+const chip = el('button', 'store-chip' + (store.id === state.currentStoreId ? ' active' : ''), store.name);
+chip.onclick = () => selectStore(store.id);
+storeRail.appendChild(chip);
+});
+const addChip = el('button', 'store-chip add', '+ 매장 추가');
+addChip.onclick = openAddStoreModal;
+storeRail.appendChild(addChip);
+}
+
+async function selectStore(storeId){
+state.currentStoreId = storeId;
+renderStoreRail();
+content.innerHTML = '<div class="empty-state"><div class="small">불러오는 중…</div></div>';
+await loadItems(storeId);
+renderContent();
+saveSnapshot();
+}
+
+function currentSearch(){
+const input = document.getElementById('searchInput');
+return input ? input.value.trim().toLowerCase() : '';
+}
+
+function renderContent(){
+content.innerHTML = '';
+if (!state.currentStoreId){
+fab.style.display = 'none';
+const es = el('div', 'empty-state');
+es.innerHTML = `<div class="big">아직 등록된 매장이 없어요</div><div class="small">위에서 '+ 매장 추가'를 눌러<br>재고를 기록할 매장을 만들어보세요.</div>`;
+content.appendChild(es);
+return;
+}
+fab.style.display = 'block';
+
+const searchRow = el('div', 'search-row');
+const input = el('input', 'search-input');
+input.id = 'searchInput';
+input.placeholder = '상품명으로 검색';
+input.oninput = renderItemList;
+searchRow.appendChild(input);
+content.appendChild(searchRow);
+
+const label = el('div', 'section-label', '');
+content.appendChild(label);
+
+const list = el('div');
+list.id = 'itemList';
+content.appendChild(list);
+
+renderItemList();
+}
+
+function renderItemList(){
+const list = document.getElementById('itemList');
+const label = content.querySelector('.section-label');
+if (!list) return;
+const q = currentSearch();
+let items = [...state.items];
+if (q) items = items.filter(it => it.name.toLowerCase().includes(q));
+items.sort((a,b) => b.updatedAt - a.updatedAt);
+
+label.textContent = items.length ? `등록된 상품 ${items.length}개` : '';
+
+list.innerHTML = '';
+if (!items.length){
+const es = el('div', 'empty-state');
+es.innerHTML = state.items.length
+? `<div class="small">검색 결과가 없어요.</div>`
+: `<div class="big">아직 기록된 재고가 없어요</div><div class="small">오른쪽 아래 '+ 재고 등록'으로<br>첫 재고를 알려주세요.</div>`;
+list.appendChild(es);
+return;
+}
+
+items.forEach(item => {
+const statusClass = item.status === 'yes' ? 'yes' : item.status === 'no' ? 'no' : 'unknown';
+const statusText = item.status === 'yes' ? '재고 있음' : item.status === 'no' ? '품절' : '확인중';
+const card = el('div', 'item-card ' + statusClass);
+const priceQtyParts = [];
+if (item.price) priceQtyParts.push(`<span><b>${Number(item.price).toLocaleString()}원</b></span>`);
+if (item.qty) priceQtyParts.push(`<span>수량 <b>${Number(item.qty).toLocaleString()}개</b></span>`);
+card.innerHTML = `
+<div class="item-top">
+<div class="item-main-row">
+${item.photo ? `<img class="item-thumb" src="${item.photo}">` : ''}
+<div>
+<div class="item-name">${escapeHtml(item.name)}</div>
+<div class="item-meta">${fmtDate(item.updatedAt)} 확인됨${item.barcode ? ' · 바코드 스캔' : ''}</div>
+${priceQtyParts.length ? `<div class="item-price-qty">${priceQtyParts.join('')}</div>` : ''}
+</div>
+</div>
+<div class="status-badge ${statusClass}">${statusText}</div>
+</div>
+${item.note ? `<div class="item-note">${escapeHtml(item.note)}</div>` : ''}
+<div class="item-actions">
+<button class="mini-btn ${item.status==='yes' ? 'yes-active' : ''}" data-act="yes">재고 있음</button>
+<button class="mini-btn ${item.status==='no' ? 'no-active' : ''}" data-act="no">품절</button>
+</div>
+`;
+card.querySelectorAll('.mini-btn').forEach(btn => {
+btn.onclick = () => quickUpdate(item.id, btn.dataset.act);
+});
+list.appendChild(card);
+});
+}
+
+function escapeHtml(str){
+const d = document.createElement('div');
+d.textContent = str;
+return d.innerHTML;
+}
+
+function escapeAttr(str){
+return String(str).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
+
+async function quickUpdate(itemId, status){
+const item = state.items.find(i => i.id === itemId);
+if (!item) return;
+const prevStatus = item.status;
+const prevUpdatedAt = item.updatedAt;
+item.status = status;
+item.updatedAt = Date.now();
+renderItemList();
+const saved = await saveItem({ ...item, storeId: state.currentStoreId });
+if (!saved){
+item.status = prevStatus;
+item.updatedAt = prevUpdatedAt;
+renderItemList();
+return;
+}
+showToast(status === 'yes' ? '재고 있음으로 갱신했어요' : '품절로 갱신했어요');
+}
+
+// --- Add store modal ---
+function openAddStoreModal(){
+const overlay = el('div', 'overlay');
+overlay.innerHTML = `
+<div class="modal">
+<h3>매장 추가</h3>
+<div class="field">
+<label>매장 이름</label>
+<input type="text" id="storeNameInput" placeholder="예: 애니메이트 홍대점" maxlength="40">
+</div>
+<div class="modal-actions">
+<button class="btn btn-ghost" id="cancelStore">취소</button>
+<button class="btn btn-primary" id="confirmStore">추가하기</button>
+</div>
+</div>
+`;
+document.body.appendChild(overlay);
+const nameInput = overlay.querySelector('#storeNameInput');
+nameInput.focus();
+overlay.querySelector('#cancelStore').onclick = () => overlay.remove();
+overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+overlay.querySelector('#confirmStore').onclick = async () => {
+const name = nameInput.value.trim();
+if (!name){ nameInput.focus(); return; }
+const confirmBtn = overlay.querySelector('#confirmStore');
+confirmBtn.disabled = true;
+confirmBtn.textContent = '추가 중…';
+const newId = await createStore(name);
+if (!newId){
+confirmBtn.disabled = false;
+confirmBtn.textContent = '추가하기';
+return;
+}
+const newStore = { id: newId, name };
+state.stores.push(newStore);
+renderStoreRail();
+overlay.remove();
+showToast('매장을 추가했어요');
+selectStore(newStore.id);
+};
+}
+
+// --- Add item modal ---
+function openScanModal(){
+if (!state.currentStoreId) return;
+const overlay = el('div', 'overlay');
+overlay.innerHTML = `
+<div class="modal">
+<h3>바코드 스캔</h3>
+<div id="qrReader" class="qr-reader-box"></div>
+<div class="scan-hint" id="scanHint">상품 바코드를 카메라에 비춰주세요</div>
+<div class="modal-actions">
+<button class="btn btn-ghost" id="cancelScan">취소</button>
+<button class="btn btn-ghost" id="manualEntryBtn">바코드 없이 입력할게요</button>
+</div>
+</div>
+`;
+document.body.appendChild(overlay);
+
+const cleanupScanner = () => {
+if (!scannerInstance) return;
+const s = scannerInstance;
+scannerInstance = null;
+try{
+const stopResult = s.stop();
+if (stopResult && typeof stopResult.then === 'function'){
+stopResult.catch(()=>{}).finally(() => {
+try{ s.clear(); }catch(e){}
+});
+} else {
+try{ s.clear(); }catch(e){}
+}
+}catch(e){
+try{ s.clear(); }catch(e2){}
+}
+};
+const closeScan = () => { overlay.remove(); cleanupScanner(); };
+
+overlay.querySelector('#cancelScan').onclick = closeScan;
+overlay.querySelector('#manualEntryBtn').onclick = () => { closeScan(); openItemFormModal(); };
+overlay.onclick = (e) => { if (e.target === overlay) closeScan(); };
+
+if (typeof Html5Qrcode === 'undefined'){
+overlay.querySelector('#scanHint').textContent = '이 브라우저에서는 카메라 스캔을 쓸 수 없어요. 아래에서 직접 입력해주세요.';
+return;
+}
+
+scannerInstance = new Html5Qrcode('qrReader');
+scannerInstance.start(
+{ facingMode: 'environment' },
+{ fps: 10, qrbox: { width: 260, height: 160 } },
+(decodedText) => {
+const code = decodedText.trim();
+cleanupScanner();
+overlay.remove();
+handleScannedCode(code);
+},
+() => { /* per-frame miss, ignore */ }
+).catch(() => {
+const hint = document.getElementById('scanHint');
+if (hint) hint.textContent = '카메라를 사용할 수 없어요. 권한을 확인하거나 직접 입력해주세요.';
+});
+}
+
+async function handleScannedCode(code){
+if (catalogPromise) await catalogPromise;
+const known = state.catalog[code];
+openItemFormModal({
+barcode: code,
+name: known ? known.name : '',
+price: known ? known.price : null,
+photo: known ? known.photo : null,
+});
+showToast(known ? '등록된 상품 정보를 불러왔어요' : '처음 스캔된 바코드예요, 상품명을 알려주세요');
+}
+
+function resizeImageFile(file){
+return new Promise((resolve, reject) => {
+const reader = new FileReader();
+reader.onerror = () => reject(new Error('read failed'));
+reader.onload = () => {
+const img = new Image();
+img.onerror = () => reject(new Error('image decode failed'));
+img.onload = () => {
+const maxW = 300;
+const scale = Math.min(1, maxW / img.width);
+const w = Math.round(img.width * scale);
+const h = Math.round(img.height * scale);
+const canvas = document.createElement('canvas');
+canvas.width = w; canvas.height = h;
+const ctx = canvas.getContext('2d');
+ctx.drawImage(img, 0, 0, w, h);
+resolve(canvas.toDataURL('image/jpeg', 0.5));
+};
+img.src = reader.result;
+};
+reader.readAsDataURL(file);
+});
+}
+
+function openItemFormModal(prefill){
+if (!state.currentStoreId) return;
+prefill = prefill || {};
+let selectedStatus = 'yes';
+let photoData = prefill.photo || null;
+const barcode = prefill.barcode || null;
+const overlay = el('div', 'overlay');
+overlay.innerHTML = `
+<div class="modal">
+<h3>재고 등록</h3>
+${barcode ? `<div class="barcode-tag">바코드 ${escapeHtml(barcode)}</div>` : ''}
+<div class="field">
+<label>사진 (선택)</label>
+<div class="photo-upload">
+<img class="photo-preview" id="photoPreview" style="${photoData ? '' : 'display:none;'}" src="${photoData || ''}">
+<label class="photo-upload-btn" id="photoBtnLabel">
+${photoData ? '사진 바꾸기' : '사진 선택하기'}
+<input type="file" accept="image/*" id="photoInput">
+</label>
+</div>
+</div>
+<div class="field">
+<label>상품명</label>
+<input type="text" id="itemNameInput" placeholder="예: 진격의 거인 아크릴 스탠드" maxlength="60" value="${escapeAttr(prefill.name || '')}">
+</div>
+<div class="field">
+<label>재고 상태</label>
+<div class="toggle-row">
+<button type="button" class="sel-yes" data-v="yes">재고 있음</button>
+<button type="button" data-v="no">품절</button>
+</div>
+</div>
+<div class="row-2">
+<div class="field">
+<label>개수 (선택)</label>
+<input type="number" id="itemQtyInput" min="0" inputmode="numeric" placeholder="예: 3">
+</div>
+<div class="field">
+<label>가격 (선택)</label>
+<input type="number" id="itemPriceInput" min="0" inputmode="numeric" placeholder="예: 15000" value="${prefill.price != null ? prefill.price : ''}">
+</div>
+</div>
+<div class="field">
+<label>메모 (선택)</label>
+<textarea id="itemNoteInput" rows="2" maxlength="120" placeholder="예: 3층 매대에 있었어요"></textarea>
+</div>
+<div class="modal-actions">
+<button class="btn btn-ghost" id="cancelItem">취소</button>
+<button class="btn btn-primary" id="confirmItem">등록하기</button>
+</div>
+</div>
+`;
+document.body.appendChild(overlay);
+const nameInput = overlay.querySelector('#itemNameInput');
+if (!prefill.name) nameInput.focus(); else overlay.querySelector('#itemQtyInput').focus();
+const toggleBtns = overlay.querySelectorAll('.toggle-row button');
+toggleBtns.forEach(btn => {
+btn.onclick = () => {
+selectedStatus = btn.dataset.v;
+toggleBtns.forEach(b => b.classList.remove('sel-yes','sel-no'));
+btn.classList.add(selectedStatus === 'yes' ? 'sel-yes' : 'sel-no');
+};
+});
+const photoInput = overlay.querySelector('#photoInput');
+const photoPreview = overlay.querySelector('#photoPreview');
+const photoBtnLabel = overlay.querySelector('#photoBtnLabel');
+photoInput.onchange = async () => {
+const file = photoInput.files[0];
+if (!file) return;
+photoBtnLabel.firstChild.textContent = '처리 중…';
+try{
+photoData = await resizeImageFile(file);
+photoPreview.src = photoData;
+photoPreview.style.display = 'block';
+photoBtnLabel.firstChild.textContent = '사진 바꾸기';
+}catch(e){
+showToast('사진을 불러오지 못했어요');
+photoBtnLabel.firstChild.textContent = photoData ? '사진 바꾸기' : '사진 선택하기';
+}
+};
+overlay.querySelector('#cancelItem').onclick = () => overlay.remove();
+overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+overlay.querySelector('#confirmItem').onclick = async () => {
+const name = nameInput.value.trim();
+if (!name){ nameInput.focus(); return; }
+const note = overlay.querySelector('#itemNoteInput').value.trim();
+const qtyRaw = overlay.querySelector('#itemQtyInput').value;
+const priceRaw = overlay.querySelector('#itemPriceInput').value;
+const qty = qtyRaw !== '' ? Math.max(0, parseInt(qtyRaw, 10)) : null;
+const price = priceRaw !== '' ? Math.max(0, parseInt(priceRaw, 10)) : null;
+
+let safePhoto = photoData;
+if (safePhoto && safePhoto.length > 45000){
+safePhoto = null;
+showToast('사진 용량이 너무 커서 이번엔 사진 없이 저장했어요', 3500);
+}
+
+const existing = barcode
+? state.items.find(i => i.barcode === barcode)
+: state.items.find(i => i.name.toLowerCase() === name.toLowerCase());
+
+const itemPayload = {
+id: existing ? existing.id : uid(),
+storeId: state.currentStoreId,
+name, status: selectedStatus, note, qty, price,
+photo: safePhoto || (existing ? existing.photo : null),
+barcode,
+updatedAt: Date.now(),
+};
+
+const confirmBtn = overlay.querySelector('#confirmItem');
+confirmBtn.disabled = true;
+confirmBtn.textContent = '저장 중…';
+const saved = await saveItem(itemPayload);
+if (!saved){
+confirmBtn.disabled = false;
+confirmBtn.textContent = '등록하기';
+return;
+}
+
+if (existing){
+Object.assign(existing, itemPayload);
+} else {
+state.items.push(itemPayload);
+}
+
+if (barcode){
+const entry = { name, price, photo: safePhoto || null, updatedAt: Date.now() };
+state.catalog[barcode] = entry;
+await saveCatalogEntry(barcode, entry);
+}
+
+renderItemList();
+overlay.remove();
+showToast('재고를 등록했어요');
+};
+}
+
+document.getElementById('openAddItem').onclick = openScanModal;
+
+async function init(){
+refreshApiBanner();
+if (!apiUrl || apiUrl === 'YOUR_WEB_APP_URL_HERE'){
+renderStoreRail();
+renderContent();
+return;
+}
+
+// 1. Paint instantly from the last-known snapshot (if any) so the screen
+// is never blank while we wait on the network.
+const snap = loadSnapshot();
+let paintedFromCache = false;
+if (snap && Array.isArray(snap.stores) && snap.stores.length){
+state.stores = snap.stores;
+state.currentStoreId = snap.currentStoreId || snap.stores[0].id;
+state.items = Array.isArray(snap.items) ? snap.items : [];
+renderStoreRail();
+renderContent();
+paintedFromCache = true;
+}
+
+// 2. Fetch fresh data. If we already know which store to show, this is a
+// single combined request (stores + items together).
+const targetStoreId = state.currentStoreId;
+const data = await loadInit(targetStoreId);
+
+if (!data || !Array.isArray(data.stores)){
+if (!paintedFromCache){ renderStoreRail(); renderContent(); }
+} else if (!targetStoreId){
+// True first-ever visit: we only know the store list so far, so pick the
+// first store and fetch its items as a second (unavoidable) request.
+state.stores = data.stores;
+renderStoreRail();
+if (state.stores.length){
+await selectStore(state.stores[0].id);
+} else {
+renderContent();
+}
+} else {
+state.stores = data.stores;
+if (state.currentStoreId === targetStoreId && Array.isArray(data.items)){
+state.items = data.items;
+}
+renderStoreRail();
+if (document.getElementById('itemList')){
+renderItemList();
+} else {
+renderContent();
+}
+saveSnapshot();
+}
+
+// Catalog is only needed for barcode-scan autofill, so fetch it quietly
+// in the background instead of delaying the initial screen.
+catalogPromise = loadCatalog();
+}
+
+init();
+})();
+</script>
 </body>
 </html>
