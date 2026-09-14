@@ -836,7 +836,7 @@ if (!document.body.contains(overlay)) return;
 scannerInstance = new Html5Qrcode('qrReader');
 return scannerInstance.start(
 {
-  facingMode: { ideal: 'environment' }
+  facingMode: 'environment'
 },
 { fps: 10, qrbox: { width: 260, height: 160 } },
 (decodedText) => {
