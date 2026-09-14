@@ -400,6 +400,7 @@ loading: true,
 
 let scannerInstance = null;
 let catalogPromise = null;
+let storeLoadVersion = 0;
 
 // 아래 작은따옴표(' ') 안의 주소를 구글 앱스 스크립트 웹 앱 URL로 바꿔주세요!
 const apiUrl = 'https://script.google.com/macros/s/AKfycbztfPsYhZAiQxAspUhDOB78qBtCjvjCDAGE7Po1qs5qcTwXutN0gH0-6G9bi__8GMay/exec';
@@ -551,6 +552,7 @@ localStorage.setItem('stockTrackerSnapshot', JSON.stringify({
 stores: state.stores,
 currentStoreId: state.currentStoreId,
 items: state.items,
+itemsStoreId: state.currentStoreId,
 savedAt: Date.now()
 }));
 }catch(e){ /* storage unavailable or full, skip silently */ }
@@ -573,7 +575,7 @@ return (res && res.ok) ? id : null;
 
 async function loadItems(storeId){
 const data = await apiGet({ action: 'items', store: storeId, _: Date.now().toString() });
-state.items = Array.isArray(data) ? data : [];
+return Array.isArray(data) ? data : [];
 }
 
 async function saveItem(item){
@@ -604,10 +606,14 @@ storeRail.appendChild(addChip);
 }
 
 async function selectStore(storeId){
+const loadVersion = ++storeLoadVersion;
 state.currentStoreId = storeId;
+state.items = [];
 renderStoreRail();
 content.innerHTML = '<div class="empty-state"><div class="small">불러오는 중…</div></div>';
-await loadItems(storeId);
+const items = await loadItems(storeId);
+if (loadVersion !== storeLoadVersion || state.currentStoreId !== storeId) return;
+state.items = items;
 renderContent();
 saveSnapshot();
 }
@@ -1019,7 +1025,9 @@ showToast('재고를 등록했어요');
 document.getElementById('openAddItem').onclick = openScanModal;
 
 async function refreshFromServer(targetStoreId, paintedFromCache){
+const refreshVersion = storeLoadVersion;
 const data = await loadInit(targetStoreId);
+if (refreshVersion !== storeLoadVersion || state.currentStoreId !== targetStoreId) return;
 if (!data || !Array.isArray(data.stores)){
 if (!paintedFromCache){ renderStoreRail(); renderContent(); }
 if (apiUrl){
@@ -1039,7 +1047,9 @@ state.items = [];
 if (state.currentStoreId === targetStoreId && Array.isArray(data.items)){
 state.items = data.items;
 } else if (state.currentStoreId){
-await loadItems(state.currentStoreId);
+const items = await loadItems(state.currentStoreId);
+if (refreshVersion !== storeLoadVersion) return;
+state.items = items;
 }
 renderStoreRail();
 renderContent();
@@ -1063,7 +1073,9 @@ let paintedFromCache = false;
 if (snap && Array.isArray(snap.stores) && snap.stores.length){
 state.stores = snap.stores;
 state.currentStoreId = snap.currentStoreId || snap.stores[0].id;
-state.items = Array.isArray(snap.items) ? snap.items : [];
+state.items = snap.itemsStoreId === state.currentStoreId && Array.isArray(snap.items)
+  ? snap.items
+  : [];
 renderStoreRail();
 renderContent();
 paintedFromCache = true;
