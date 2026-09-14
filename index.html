@@ -842,7 +842,7 @@ try {
 const cameras = await Html5Qrcode.getCameras();
 if (cameras.length >= 2){
 startOptions = [
- { deviceId: { exact: cameras[1].id } },
+ { deviceId: { exact: cameras[0].id } },
  ...startOptions
 ];
 }
