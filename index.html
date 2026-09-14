@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>재고왔당 · 매장 재고 공유</title>
+<link rel="icon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
@@ -528,7 +529,19 @@ return true;
 
 async function loadInit(storeId){
 const params = storeId ? { action: 'init', store: storeId, _: Date.now().toString() } : { action: 'init', _: Date.now().toString() };
-return await apiGet(params);
+const data = await apiGet(params);
+if (data && !data.error) return data;
+
+// Older Apps Script deployments may not have the combined init action yet.
+// Fall back to the separate endpoints so those deployments still work.
+const stores = await apiGet({ action: 'stores', _: Date.now().toString() });
+if (!Array.isArray(stores)) return data;
+const result = { stores };
+if (storeId){
+const items = await apiGet({ action: 'items', store: storeId, _: Date.now().toString() });
+if (Array.isArray(items)) result.items = items;
+}
+return result;
 }
 
 function saveSnapshot(){
@@ -1037,6 +1050,7 @@ storageBanner.textContent = '⚠️ 서버에서 매장 정보를 못 받아왔�
 storageBanner.classList.add('show');
 }
 } else {
+storageBanner.classList.remove('show');
 state.stores = data.stores
   .map(store => ({ id: String(store.id || '').trim(), name: String(store.name || '').trim() }))
   .filter(store => store.id && store.name);
