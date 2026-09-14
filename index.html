@@ -799,10 +799,7 @@ return;
 scannerInstance = new Html5Qrcode('qrReader');
 scannerInstance.start(
 {
-facingMode: { ideal: 'environment' },
-width: { ideal: 1280 },
-height: { ideal: 720 },
-advanced: [{ focusMode: 'continuous' }]
+facingMode: { ideal: 'environment' }
 },
 { fps: 10, qrbox: { width: 260, height: 160 } },
 (decodedText) => {
@@ -1047,9 +1044,17 @@ renderContent();
 }
 } else {
 state.stores = data.stores;
+const serverStoreIds = new Set(state.stores.map(store => store.id));
+let needsStoreItems = false;
+if (!serverStoreIds.has(state.currentStoreId)){
+state.currentStoreId = state.stores.length ? state.stores[0].id : null;
+state.items = [];
+needsStoreItems = !!state.currentStoreId;
+}
 if (state.currentStoreId === targetStoreId && Array.isArray(data.items)){
 state.items = data.items;
 }
+if (needsStoreItems) await loadItems(state.currentStoreId);
 renderStoreRail();
 if (document.getElementById('itemList')){
 renderItemList();
