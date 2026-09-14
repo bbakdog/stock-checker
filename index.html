@@ -1071,9 +1071,16 @@ paintedFromCache = true;
 
 const targetStoreId = state.currentStoreId;
 if (paintedFromCache){
-setTimeout(() => {
-refreshFromServer(targetStoreId, true).catch(err => console.error('background refresh error', err));
-}, 0);
+const refresh = () => {
+ setTimeout(() => {
+   refreshFromServer(targetStoreId, true).catch(err => console.error('background refresh error', err));
+ }, 0);
+};
+if (document.readyState === 'complete'){
+refresh();
+} else {
+window.addEventListener('load', refresh, { once: true });
+}
 } else {
 await refreshFromServer(targetStoreId, false);
 }
