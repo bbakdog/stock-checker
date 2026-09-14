@@ -314,7 +314,12 @@ border-radius: 14px;
 overflow: hidden;
 background: #0B0B10;
 }
-.qr-reader-box video, .qr-reader-box canvas{ width: 100% !important; }
+.qr-reader-box video, .qr-reader-box canvas{
+width: 100% !important;
+height: 100% !important;
+object-fit: cover;
+image-rendering: -webkit-optimize-contrast;
+}
 .scan-hint{
 text-align: center;
 font-size: 13px;
@@ -844,18 +849,76 @@ const onFailure = () => {};
 const constraintOptions = [
 {
   facingMode: 'environment',
-  width: { ideal: 1920 },
-  height: { ideal: 1080 },
+  width: { min: 1280, ideal: 1920 },
+  height: { min: 720, ideal: 1080 },
   aspectRatio: { ideal: 1.777777778 },
-  focusMode: 'continuous'
+  advanced: [{ zoom: 2 }]
 },
 {
   facingMode: 'environment',
-  width: { ideal: 1280 },
-  height: { ideal: 720 }
+  width: { min: 1280, ideal: 1280 },
+  height: { min: 720, ideal: 720 }
 },
 { facingMode: 'environment' }
 ];
+
+const startNativeDetector = async () => {
+if (!('BarcodeDetector' in window)) return false;
+const BarcodeDetectorClass = window.BarcodeDetector;
+const supported = BarcodeDetectorClass.getSupportedFormats
+  ? await BarcodeDetectorClass.getSupportedFormats()
+  : ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'qr_code'];
+const formats = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'qr_code']
+  .filter(format => supported.includes(format));
+if (!formats.length) return false;
+const stream = await navigator.mediaDevices.getUserMedia({
+  video: constraintOptions[0],
+  audio: false
+});
+const video = document.createElement('video');
+video.autoplay = true;
+video.muted = true;
+video.playsInline = true;
+video.setAttribute('webkit-playsinline', 'true');
+video.srcObject = stream;
+const reader = document.getElementById('qrReader');
+reader.innerHTML = '';
+reader.appendChild(video);
+await video.play();
+const detector = new BarcodeDetectorClass({ formats });
+let stopped = false;
+const detect = async () => {
+if (stopped || !document.body.contains(overlay)) return;
+try {
+const results = await detector.detect(video);
+if (results.length && results[0].rawValue){
+onSuccess(results[0].rawValue);
+return;
+}
+} catch (error) {
+console.debug('native barcode detection failed', error);
+}
+requestAnimationFrame(detect);
+};
+scannerInstance = {
+stop: async () => {
+stopped = true;
+stream.getTracks().forEach(track => track.stop());
+},
+clear: () => {
+video.srcObject = null;
+reader.innerHTML = '';
+}
+};
+requestAnimationFrame(detect);
+return true;
+};
+
+try {
+if (await startNativeDetector()) return;
+} catch (error) {
+console.debug('native barcode detector unavailable; using html5-qrcode', error);
+}
 
 try {
 const cameras = await Html5Qrcode.getCameras();
