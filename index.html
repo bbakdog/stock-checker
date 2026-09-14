@@ -6,7 +6,7 @@
 <title>재고왔당 · 매장 재고 공유</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <style>
 :root{
 --bg: #EEF1F6;
@@ -1025,22 +1025,31 @@ renderContent();
 paintedFromCache = true;
 }
 
-// 2. The server is authoritative for the store list. Do not let a
-// device-local snapshot decide which stores are visible.
-const storesLoaded = await loadStores();
-if (!storesLoaded){
+// 2. Fetch stores and the cached store's items in one server request.
+// The cached ID is only a request hint; the server response remains
+// authoritative for the visible store list.
+const targetStoreId = state.currentStoreId;
+const data = await loadInit(targetStoreId);
+if (!data || !Array.isArray(data.stores)){
 if (!paintedFromCache){ renderStoreRail(); renderContent(); }
 if (apiUrl){
 storageBanner.textContent = '⚠️ 서버에서 매장 정보를 못 받아왔어요. 새로고침해도 안 되면 스크린샷 보내주세요.';
 storageBanner.classList.add('show');
 }
 } else {
+state.stores = data.stores
+  .map(store => ({ id: String(store.id || '').trim(), name: String(store.name || '').trim() }))
+  .filter(store => store.id && store.name);
 const serverStoreIds = new Set(state.stores.map(store => store.id));
-if (!serverStoreIds.has(String(state.currentStoreId || '').trim())){
+if (!state.currentStoreId || !serverStoreIds.has(String(state.currentStoreId).trim())){
 state.currentStoreId = state.stores.length ? state.stores[0].id : null;
 state.items = [];
 }
-if (state.currentStoreId) await loadItems(state.currentStoreId);
+if (state.currentStoreId === targetStoreId && Array.isArray(data.items)){
+state.items = data.items;
+} else if (state.currentStoreId){
+await loadItems(state.currentStoreId);
+}
 renderStoreRail();
 renderContent();
 saveSnapshot();
