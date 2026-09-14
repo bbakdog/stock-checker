@@ -846,7 +846,24 @@ overlay.remove();
 handleScannedCode(code);
 },
 () => { /* per-frame miss, ignore */ }
-)
+).then(() => {
+const video = overlay.querySelector('#qrReader video');
+const track = video && video.srcObject && video.srcObject.getVideoTracks()[0];
+if (!track || !track.applyConstraints) return;
+
+const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+const widthMax = capabilities.width && Number(capabilities.width.max);
+const heightMax = capabilities.height && Number(capabilities.height.max);
+const width = Number.isFinite(widthMax) ? Math.min(1920, widthMax) : 1920;
+const height = Number.isFinite(heightMax) ? Math.min(1080, heightMax) : 1080;
+
+return track.applyConstraints({
+  width: { ideal: width },
+  height: { ideal: height }
+}).catch(error => {
+  console.debug('high-resolution camera constraints unavailable', error);
+});
+});
 }).catch((error) => {
 console.error('camera start error', error);
 if (hint) hint.textContent = '카메라를 시작할 수 없어요. 브라우저의 카메라 권한을 허용한 뒤 다시 시도해주세요.';
