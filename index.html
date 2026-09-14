@@ -856,9 +856,28 @@ handleScannedCode(code);
 const video = overlay.querySelector('#qrReader video');
 const track = video && video.srcObject && video.srcObject.getVideoTracks()[0];
 if (!track || !track.applyConstraints) return;
+if (video){
+video.setAttribute('playsinline', 'true');
+video.setAttribute('autoplay', 'true');
+}
+const applyFocus = () => {
 const capabilities = track.getCapabilities ? track.getCapabilities() : {};
-if (capabilities.focusMode && capabilities.focusMode.includes('continuous')){
-track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
+const modes = Array.isArray(capabilities.focusMode) ? capabilities.focusMode : [];
+if (!modes.includes('continuous')) return Promise.resolve();
+return track.applyConstraints({ focusMode: 'continuous' })
+  .catch(() => track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }));
+};
+const focusAfterReady = () => applyFocus().catch(error => {
+console.debug('continuous autofocus is unavailable', error);
+});
+const retryFocus = (attempt) => {
+focusAfterReady();
+if (attempt < 3) setTimeout(() => retryFocus(attempt + 1), 350);
+};
+if (video && video.readyState < 2){
+video.addEventListener('loadeddata', () => retryFocus(0), { once: true });
+} else {
+retryFocus(0);
 }
 });
 }).catch((error) => {
