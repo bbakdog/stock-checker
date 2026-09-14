@@ -843,7 +843,11 @@ if (rearCamera) cameraConfig = { deviceId: { exact: rearCamera.id } };
 // start() will request permission and report a useful error if unavailable.
 }
 return scannerInstance.start(
-cameraConfig,
+{
+  ...cameraConfig,
+  width: { ideal: 1920 },
+  height: { ideal: 1080 }
+},
 { fps: 10, qrbox: { width: 260, height: 160 } },
 (decodedText) => {
 const code = decodedText.trim();
@@ -859,13 +863,23 @@ if (!track || !track.applyConstraints) return;
 if (video){
 video.setAttribute('playsinline', 'true');
 video.setAttribute('autoplay', 'true');
+video.addEventListener('click', () => retryFocus(0));
 }
 const applyFocus = () => {
 const capabilities = track.getCapabilities ? track.getCapabilities() : {};
 const modes = Array.isArray(capabilities.focusMode) ? capabilities.focusMode : [];
-if (!modes.includes('continuous')) return Promise.resolve();
-return track.applyConstraints({ focusMode: 'continuous' })
-  .catch(() => track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }));
+const constraints = {};
+if (modes.includes('continuous')) constraints.focusMode = 'continuous';
+if (capabilities.focusDistance){
+const min = Number(capabilities.focusDistance.min);
+const max = Number(capabilities.focusDistance.max);
+if (Number.isFinite(min) && Number.isFinite(max)){
+constraints.focusDistance = Math.min(max, Math.max(min, min + (max - min) * 0.2));
+}
+}
+if (!Object.keys(constraints).length) return Promise.resolve();
+return track.applyConstraints(constraints)
+  .catch(() => track.applyConstraints({ advanced: [constraints] }));
 };
 const focusAfterReady = () => applyFocus().catch(error => {
 console.debug('continuous autofocus is unavailable', error);
