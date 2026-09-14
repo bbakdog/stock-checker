@@ -834,64 +834,69 @@ return;
 waitForScanner().then(async () => {
 if (!document.body.contains(overlay)) return;
 scannerInstance = new Html5Qrcode('qrReader');
-let cameraConfig = { facingMode: 'environment' };
+const startOptions = [
+ { facingMode: { ideal: 'environment' } },
+ { facingMode: 'environment' },
+ {}
+];
+const startCamera = async () => {
+let lastError = null;
+for (const options of startOptions){
 try {
-const cameras = await Html5Qrcode.getCameras();
-const rearCamera = cameras.find(camera => /back|rear|environment|후면|뒤/i.test(camera.label));
-if (rearCamera) cameraConfig = { deviceId: { exact: rearCamera.id } };
-} catch (e) {
-// start() will request permission and report a useful error if unavailable.
+return await scannerInstance.start(
+ options,
+ { fps: 10, qrbox: { width: 260, height: 160 } },
+ (decodedText) => {
+   const code = decodedText.trim();
+   cleanupScanner();
+   overlay.remove();
+   handleScannedCode(code);
+ },
+ () => { /* per-frame miss, ignore */ }
+);
+} catch (error) {
+lastError = error;
 }
-return scannerInstance.start(
-{
-  ...cameraConfig,
-  width: { ideal: 1920 },
-  height: { ideal: 1080 }
-},
-{ fps: 10, qrbox: { width: 260, height: 160 } },
-(decodedText) => {
-const code = decodedText.trim();
-cleanupScanner();
-overlay.remove();
-handleScannedCode(code);
-},
-() => { /* per-frame miss, ignore */ }
-).then(() => {
+}
+throw lastError || new Error('카메라를 시작할 수 없어요');
+};
+return startCamera(
+)
+.then(() => {
 const video = overlay.querySelector('#qrReader video');
 const track = video && video.srcObject && video.srcObject.getVideoTracks()[0];
 if (!track || !track.applyConstraints) return;
 if (video){
 video.setAttribute('playsinline', 'true');
 video.setAttribute('autoplay', 'true');
-video.addEventListener('click', () => retryFocus(0));
 }
+const applyZoom = () => {
+const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+if (!capabilities.zoom) return Promise.resolve();
+const min = Number(capabilities.zoom.min);
+const max = Number(capabilities.zoom.max);
+if (!Number.isFinite(min) || !Number.isFinite(max)) return Promise.resolve();
+if (max < 1) return Promise.resolve();
+const zoom = Math.min(3, max);
+return track.applyConstraints({ advanced: [{ zoom }] });
+};
 const applyFocus = () => {
 const capabilities = track.getCapabilities ? track.getCapabilities() : {};
 const modes = Array.isArray(capabilities.focusMode) ? capabilities.focusMode : [];
-const constraints = {};
-if (modes.includes('continuous')) constraints.focusMode = 'continuous';
-if (capabilities.focusDistance){
-const min = Number(capabilities.focusDistance.min);
-const max = Number(capabilities.focusDistance.max);
-if (Number.isFinite(min) && Number.isFinite(max)){
-constraints.focusDistance = Math.min(max, Math.max(min, min + (max - min) * 0.2));
-}
-}
-if (!Object.keys(constraints).length) return Promise.resolve();
-return track.applyConstraints(constraints)
-  .catch(() => track.applyConstraints({ advanced: [constraints] }));
+if (!modes.includes('continuous')) return Promise.resolve();
+return track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
 };
-const focusAfterReady = () => applyFocus().catch(error => {
-console.debug('continuous autofocus is unavailable', error);
-});
-const retryFocus = (attempt) => {
-focusAfterReady();
-if (attempt < 3) setTimeout(() => retryFocus(attempt + 1), 350);
+const applyCameraControls = () => Promise.allSettled([applyZoom(), applyFocus()]);
+const retryControls = (attempt) => {
+applyCameraControls().catch(() => {});
+if (attempt < 3) setTimeout(() => retryControls(attempt + 1), 350);
 };
-if (video && video.readyState < 2){
-video.addEventListener('loadeddata', () => retryFocus(0), { once: true });
+if (video){
+video.addEventListener('click', () => retryControls(0));
+if (video.readyState < 2) video.addEventListener('loadeddata', () => retryControls(0), { once: true });
+else retryControls(0);
 } else {
-retryFocus(0);
+retryControls(0);
 }
 });
 }).catch((error) => {
